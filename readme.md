@@ -1,14 +1,12 @@
---------------------------
-How to Start a New Typescript Node Project
---------------------------
-3. delete the .git folder in this project folder and start a new git project using github desktop
-4. Create .env file and populate it with needed variables
-5. Follow OneNote guide to 'Adding Project to AWS' under JS/TS Projects in AWS > Creating a New Project, or see below:
-6. to test the app in terminal: npx ts-node -P tsconfig.json 3016-satoshi-server.ts
-7. Update this readme to reflect your new project's details
+This is the server that works with satoshi-client to load ai created spritesheets into unity and you can walk around in unity.
+
+You cannot yet prompt the ai from Unity.  Once you set up your .ENV API key, use Main.ts to generate new spritesheets like below:
+
+//this.generateSpritesheet("chicken");
+
 
 --------------------------
-'Adding Project to AWS'
+To-Do: Finish Setting up to AWS
 --------------------------
 
 1. SSH: Create project folders and set up to receive gitpush command
