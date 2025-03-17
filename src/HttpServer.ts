@@ -33,7 +33,8 @@ export class HttpServer {
     this.app.locals.urlPath = process.env.URL_PATH; // URL_PATH is different in development and production.  this allows .ejs files to quickly pull <%= urlPath %> before links
     this.app.locals.urlDomain = process.env.URL_DOMAIN; // URL_PATH is different in development and production.  this allows .ejs files to quickly pull <%= urlPath %> before links
     this.app.use(rateLimit({windowMs: 60 * 1000, max: 60/*60 req/min*/, message: "Too many requests."}));
-    
+    this.app.use(express.json());
+
     // Serve static files
     this.app.use(express.static(path.join(__dirname, '../public')));
 

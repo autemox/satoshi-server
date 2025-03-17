@@ -34,6 +34,34 @@ export class Routes
       }
     });
 
+    //api/generate-spritesheet
+    this.router.post('/api/generate-spritesheet', async (req, res) => {
+      try {
+
+        const prompt = req.body.prompt;
+        console.log('/api/generate-spritesheet called.  Prompt: ', prompt);
+        console.log('Request headers:', req.headers);
+        console.log('Raw body:', req.body); // This should show your JSON data
+        if (!prompt) {
+          res.status(400).json({ error: 'Prompt is required' });
+          return;
+        }
+        
+        const filename:string|null = await this.main.generateSpritesheet(prompt);
+        console.log('Ran generateSpritesheet().  Result filename: ', filename);
+        if(!filename) {
+          res.status(500).json({ error: 'Failed to generate spritesheet' });
+          return;
+        }
+
+        res.json({ filename, success: true });
+
+      } catch (error) {
+        console.error('Error generating spritesheet:', error);
+        res.status(500).json({ error: 'Failed to generate spritesheet' });
+      }
+    });
+
     this.router.get('/api/game-init', async (req, res) => {
       try {
         // Get all files from the spritesheets directory
