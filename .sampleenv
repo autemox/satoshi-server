@@ -1,0 +1,10 @@
+# retrodiffusion character spritesheet generator api
+RETRO_DIFFUSION_API_KEY=
+
+# httpserver
+HTTP_PORT=3016
+SOCKET_PORT=3017
+
+# production vs development
+URL_DOMAIN="localhost:3016"     # in production: 'lysle.net'  in development: 'localhost:3016'
+URL_PATH=""                     # in production: '/satoshi-server'  in development: ''
