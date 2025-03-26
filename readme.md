@@ -55,23 +55,23 @@ pm2 list                                                 // make sure it success
 
 Unity's Netcode for GameObjects (NGO) is a high-level networking library that makes it easier to develop multiplayer games by extending `NetworkBehaviour` instead of `MonoBehaviour`. It includes integrated scene management to ensure all connected clients are synchronized.
 
-# The Server
+## The Server
 
 The server can be run as a dedicated server in a headless version of Unity, which runs without graphics. Other options include Host-Client mode and Peer-to-Peer with Relay.
 
-## Dedicated Server
+### Dedicated Server
 A dedicated server is an authoritative instance of the game running headless, making it efficient and secure. Clients connect to it for authoritative game state updates.
 
-# Decorating Variables and Functions
+## Decorating Variables and Functions
 
 You can decorate variables and functions for syncing data and calling server-client functions.
 
-## [SyncVar] vs NetworkVariable<float>
+### [SyncVar] vs NetworkVariable<float>
 
 - `[SyncVar]` is an older way to synchronize variables between server and clients. It works only with `Mirror`, not NGO.
 - `NetworkVariable<float>` is a modern way in NGO to synchronize float values between server and clients.
 
-## [ServerRpc]
+### [ServerRpc]
 
 Used to call functions on the server from a client. The object being called must be owned by the client.
 
@@ -84,7 +84,7 @@ void MoveServerRpc(Vector2 newPos)
 }
 ```
 
-## [ClientRpc]
+### [ClientRpc]
 
 Used to call functions on clients from the server.
 
@@ -97,7 +97,7 @@ void NotifyClientRpc(string message)
 }
 ```
 
-# NetworkVariables
+## NetworkVariables
 
 NetworkVariables are synchronized between the server and all clients. They have various properties:
 
@@ -107,33 +107,33 @@ NetworkVariables are synchronized between the server and all clients. They have 
 - `CanClientWrite`: Checks if the client has write permissions.
 - `CanClientRead`: Checks if the client has read permissions.
 
-## How to Set Write Permissions
+### How to Set Write Permissions
 
 Example:
 ```csharp
 public NetworkVariable<float> health = new NetworkVariable<float>(100f, NetworkVariableWritePermission.Server);
 ```
 
-# IsOwner and IsServer
+## IsOwner and IsServer
 
 - `IsOwner`: Checks if the current client owns the object.
 - `IsServer`: Checks if the script is running on the server instance.
 
 Use these checks to make sure actions are only taken by the appropriate authority.
 
-# Understanding Frequency of Packets
+## Understanding Frequency of Packets
 
 Every time a `[ServerRpc]` function is called, it triggers a packet to be sent. Avoid calling them every `Update()` to reduce network traffic.
 
-# NetworkTickSystem
+## NetworkTickSystem
 
 The `NetworkTickSystem` is used to control the frequency of network updates. It helps regulate how often packets are sent, preventing unnecessary traffic.
 
-# Batching of RPCs
+## Batching of RPCs
 
 Unity's NGO automatically batches multiple `[ServerRpc]` and `[ClientRpc]` calls made within the same frame, combining them into one network packet. This helps reduce network congestion and increases efficiency.
 
-# Spawning a Player
+## Spawning a Player
 
 To spawn a player object and associate it with a client, use `SpawnAsPlayerObject()`.
 
@@ -146,7 +146,7 @@ public void SpawnPlayer(ulong clientId)
 }
 ```
 
-# Handling Client Connections and Disconnections
+## Handling Client Connections and Disconnections
 
 Unity NGO provides callbacks for when clients connect and disconnect:
 - `OnClientConnectedCallback`: Triggered when a client connects.
@@ -164,7 +164,7 @@ NetworkManager.Singleton.OnClientDisconnectCallback += (clientId) =>
 };
 ```
 
-# Managing Client Data
+## Managing Client Data
 
 To store additional information (like player names), use a server-side dictionary:
 ```csharp
@@ -181,7 +181,7 @@ void UpdateNameServerRpc(string name, ServerRpcParams rpcParams = default)
 }
 ```
 
-# Spawning AI Objects
+## Spawning AI Objects
 
 AI objects are spawned by the server and made visible to all clients using:
 ```csharp
@@ -190,14 +190,14 @@ ai.NetworkObject.Spawn();
 
 Clients don’t need to add AI to their lists since they don’t manage AI movement or logic.
 
-# Ownership and Control
+## Ownership and Control
 
 Ownership in NGO means the client can update or control an object. Use:
 - `ChangeOwnership(clientId)`: Transfer ownership to another client.
 - `IsOwner`: Check if the current client owns the object.
 - `OwnerClientId`: Get the ID of the current owner.
 
-# Handling Client Input
+## Handling Client Input
 
 Clients send their input to the server using a `[ServerRpc]`, and the server then updates the authoritative state.
 
@@ -210,6 +210,6 @@ void MoveServerRpc(Vector2 newPos)
 }
 ```
 
-# Conclusion
+## Conclusion
 
 Unity NGO provides powerful networking features for multiplayer games, but careful handling of packet frequency and ownership is essential to maintain performance and consistency.
