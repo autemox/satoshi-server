@@ -38,7 +38,7 @@ export class Routes
     this.router.post('/api/generate-spritesheet', async (req, res) => {
       try {
 
-        const prompt = req.body.prompt;
+        const prompt = req.body.value;
         console.log('/api/generate-spritesheet called.  Prompt: ', prompt);
         console.log('Request headers:', req.headers);
         console.log('Raw body:', req.body); // This should show your JSON data
@@ -54,7 +54,8 @@ export class Routes
           return;
         }
 
-        res.json({ filename, success: true });
+        // create the response value containing the filename
+        res.json({ value: filename, success: true });
 
       } catch (error) {
         console.error('Error generating spritesheet:', error);
@@ -62,18 +63,18 @@ export class Routes
       }
     });
 
-    this.router.get('/api/game-init', async (req, res) => {
+    this.router.post('/api/game-init', async (req, res) => {
       try {
         // Get all files from the spritesheets directory
+        const value = req.body.value; // Get the 'id' of the client
+        console.log('Received game-init request from id:', value); // Log it only for now
+        
         const spritesheetsDir = path.join(process.cwd(), 'public', 'images', 'spritesheets');
         const files = await fs.readdir(spritesheetsDir);
         
-        // Create the response object
-        const gameInitData = {
-          spriteSheetFiles: files
-        };
-        
-        res.json(gameInitData);
+        // Create the response object containing filenames
+        res.json({ values: files });
+
       } catch (error) {
         console.error('Error reading spritesheet directory:', error);
         res.status(500).json({ error: 'Failed to load spritesheet files' });
