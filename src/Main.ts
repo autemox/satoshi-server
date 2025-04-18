@@ -60,7 +60,10 @@ export class Main {
       
       // Load all images and calculate dimensions
       const images = await Promise.all(filenames.map(async filename => 
-        await loadImage('./public/images/spritesheets/' + filename)
+        {
+          const fullPath =path.join(process.cwd(), 'public', 'images', 'spritesheets', filename);
+          return await loadImage(fullPath)
+        }
       ));
       
       const height = images[0].height;
