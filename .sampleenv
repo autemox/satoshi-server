@@ -7,7 +7,10 @@ SOCKET_PORT=3017
 
 # production vs development
 URL_DOMAIN="localhost:3016"     # in production: 'lysle.net'  in development: 'localhost:3016'
-URL_PATH=""                     # in production: '/satoshi-server'  in development: ''
+URL_PATH=""                     # in production: '/satoshi'  in development: ''
 
 #pixel lab character pose generations using skeleton system
 PIXEL_LAB_API_KEY=
+
+#password for accessing the generation tool via webpage
+ADMIN_PASSWORD=

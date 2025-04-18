@@ -55,16 +55,15 @@ export class Main {
       const path = require('path');
       const fs = require('fs').promises;
       const outputPath = path.join(process.cwd(), 'public', 'images', 'compiled_spritesheets', filenames[0]);
-
+  
       await fs.mkdir('./public/images/compiled_spritesheets', { recursive: true }).catch(() => {}); // Create dir if needed
       
       // Load all images and calculate dimensions
-      const images = await Promise.all(filenames.map(async filename => 
-        {
-          const fullPath =path.join(process.cwd(), 'public', 'images', 'spritesheets', filename);
-          return await loadImage(fullPath)
-        }
-      ));
+      const images = await Promise.all(filenames.map(async filename => {
+        
+        const fullPath = path.join(process.cwd(), 'public', 'images', 'spritesheets', filename);
+        return await loadImage(fullPath);
+      }));
       
       const height = images[0].height;
       const totalWidth = images.reduce((total, img) => total + img.width, 0);

@@ -1,24 +1,134 @@
 <%- include('partials/header', {title: viewData.title}) %>
 
-<p>This page uses RetroDifussion to generate walking spritesheets, then PixelLab to create poses, maintaining consistency over all sprites.  Enter your character prompt below and give ample time (it can take up to 5 minutes).  When your query is complete, it will appear in generated spritesheets below.</p>
+<p>This page uses RetroDifussion to generate walking spritesheets, then PixelLab to create poses, maintaining consistency over all sprites. Enter your character prompt below and give ample time (it can take up to 5 minutes). When your query is complete, it will appear in generated spritesheets below.</p>
 
-<form action="/generate-compiled-spritesheet" method="POST">
-    <label for="prompt">Character Prompt:</label>
-    <input type="text" id="prompt" name="prompt" required>
-    <button type="submit">Generate</button>
-</form>
+<!-- container, row, and content for forms and alerts -->
+<div class="container">
+  <div class="row">
+    <div class="col-12 col-md-10 col-lg-8 col-xl-6 mx-auto">
 
-<% if (viewData.alert) { %>
-  <div class="container my-3">
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      <%= viewData.alert %>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <!-- Login Form (only shown when not authenticated) -->
+      <div id="loginForm" class="mb-4">
+        <div class="alert alert-info">
+          Please enter the admin password to access spritesheet generation.
+        </div>
+        <div class="input-group">
+          <input type="password" id="passwordInput" class="form-control" placeholder="Enter password">
+          <button id="loginBtn" class="btn btn-primary">Login</button>
+        </div>
+        <div id="loginError" class="text-danger mt-2 d-none"></div>
+      </div>
+
+      <!-- Generator Form (only shown when authenticated) -->
+      <div id="generatorForm" class="d-none">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3>Create New Spritesheet</h3>
+          <button id="logoutBtn" class="btn btn-sm btn-outline-secondary">Logout</button>
+        </div>
+        
+        <form action="/generate-compiled-spritesheet" method="POST">
+          <div class="mb-3">
+            <label for="prompt" class="form-label">Character Prompt:</label>
+            <input type="text" id="prompt" name="prompt" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Generate</button>
+        </form>
+      </div>
+
+      <% if (viewData.alert) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <%= viewData.alert %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <% } %>
     </div>
   </div>
-<% } %>
+</div>
 
-<p></p>
-<h3>Generated Spritesheets</h3>
-<p><%- viewData.content %></p>
+<h3 class="mt-4">Generated Spritesheets</h3>
+<div><%- viewData.content %></div>
 
-<%- include('partials/footer') %>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // DOM elements
+  const loginForm = document.getElementById('loginForm');
+  const generatorForm = document.getElementById('generatorForm');
+  const passwordInput = document.getElementById('passwordInput');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const logoutBtn = document.getElementById('logoutBtn');
+  
+  // Check authentication status
+  checkAuthStatus();
+  
+  // Event listeners
+  loginBtn.addEventListener('click', login);
+  logoutBtn.addEventListener('click', logout);
+  
+  // Functions
+  function checkAuthStatus() {
+    fetch('/api/auth/check')
+      .then(response => response.json())
+      .then(data => {
+        if (data.authenticated) {
+          loginForm.classList.add('d-none');
+          generatorForm.classList.remove('d-none');
+        } else {
+          loginForm.classList.remove('d-none');
+          generatorForm.classList.add('d-none');
+        }
+      })
+      .catch(error => console.error('Error checking auth:', error));
+  }
+  
+  function login() {
+    const password = passwordInput.value;
+    if (!password) {
+      showLoginError('Please enter the password');
+      return;
+    }
+    
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        loginForm.classList.add('d-none');
+        generatorForm.classList.remove('d-none');
+        passwordInput.value = '';
+        hideLoginError();
+      } else showLoginError(data.message || 'Invalid password');
+    })
+    .catch(error => {
+      console.error('Login error:', error);
+      showLoginError('An error occurred during login');
+    });
+  }
+  
+  function logout() {
+    fetch('/api/auth/logout')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          loginForm.classList.remove('d-none');
+          generatorForm.classList.add('d-none');
+        }
+      })
+      .catch(error => console.error('Logout error:', error));
+  }
+  
+  function showLoginError(message) {
+    loginError.textContent = message;
+    loginError.classList.remove('d-none');
+  }
+  
+  function hideLoginError() {
+    loginError.classList.add('d-none');
+  }
+});
+</script>
+
+<%- include('partials/footer') %>x

@@ -13,6 +13,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { Routes } from './Routes';
 dotenv.config();
+import { AuthManager } from './AuthManager';
 
 export class HttpServer {
   app: Express;
@@ -38,6 +39,12 @@ export class HttpServer {
 
     // Serve static files
     this.app.use(express.static(path.join(__dirname, '../public')));
+
+    // Auth routes
+    const authManager = new AuthManager(this.main); // Auth API routes
+    this.app.post('/api/auth/login', (req, res) => authManager.login(req, res));
+    this.app.get('/api/auth/logout', (req, res) => authManager.logout(req, res));
+    this.app.get('/api/auth/check', (req, res) => authManager.checkAuth(req, res));
 
     // Routes
     const routes = new Routes(this.main);
