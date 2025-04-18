@@ -14,6 +14,7 @@ import dotenv from 'dotenv';
 import { Routes } from './Routes';
 dotenv.config();
 import { AuthManager } from './AuthManager';
+import cookieParser from 'cookie-parser';
 
 export class HttpServer {
   app: Express;
@@ -31,6 +32,7 @@ export class HttpServer {
     this.app.set('view engine', 'ejs'); 
 
     // Middleware
+    this.app.use(cookieParser());
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.locals.urlPath = process.env.URL_PATH; // URL_PATH is different in development and production.  this allows .ejs files to quickly pull <%= urlPath %> before links
     this.app.locals.urlDomain = process.env.URL_DOMAIN; // URL_PATH is different in development and production.  this allows .ejs files to quickly pull <%= urlPath %> before links
