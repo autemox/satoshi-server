@@ -103,12 +103,13 @@ export class PixelLabSpritesheetGenerator
           );
         }
       
-        const finalPath = `./public/images/spritesheets/${spriteSheetFileName.replace('.png', '')}-${pose}.png`;
+        var filename = `${spriteSheetFileName.replace('.png', '')}-${pose}.png`;
+        const finalPath = `./public/images/spritesheets/${filename}`;
         const outBuffer = sheetCanvas.toBuffer('image/png');
         await fs.writeFile(finalPath, outBuffer);
         console.log(`💾 Saved combined pose sheet: ${finalPath}`);
       
-        return finalPath;
+        return filename;
       }
       else 
       {
