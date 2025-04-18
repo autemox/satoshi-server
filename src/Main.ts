@@ -12,6 +12,7 @@ import { RetroDiffusionGenerator } from './RetroDiffusionGenerator';
 import { kebabCase } from 'string-ts';
 import fs from 'fs/promises';
 import { PixelLabSpritesheetGenerator } from './PixelLabSpriteSheetGenerator';
+import path from 'path';
 
 export class Main {
 
@@ -25,16 +26,47 @@ export class Main {
    // this.getSpritesheetAndPoses ("chicken");
   }
 
+  // determine what poses we have (ignore 'default') by looking at the json's in public/skeletons folder
+  async determinePoses(): Promise<string[]> {
+
+    // check public/skeletons for json files
+    const skeletonPath = path.join(process.cwd(), 'public', 'skeletons');
+    const allFiles = await fs.readdir(skeletonPath);
+
+    // Extract poses that have all 4 directional JSON files
+    const poseCounts: { [pose: string]: Set<string> } = {};
+    for (const file of allFiles) {
+      const match = file.match(/^(.+)-(east|north|south|west)\.json$/);
+      if (match) {
+        const poseName = match[1];
+        const direction = match[2];
+        if (poseName !== 'default') {
+          if (!poseCounts[poseName]) poseCounts[poseName] = new Set();
+          poseCounts[poseName].add(direction);
+        }
+      }
+    }
+
+    // found valid poses
+    return Object.entries(poseCounts)
+      .filter(([_, directions]) => directions.size === 4)
+      .map(([poseName]) => poseName);
+  }
+
   // generates both the walking spritesheet (with retrodiffusion) and poses (with pixellab) for all 4 directions
   async getSpritesheetAndPoses(testPrompt: string) {
 
     var fileName = await this.getWalkingSpritesheet(testPrompt); // retrodiffussion: generate walking spritesheet
     if(!fileName) throw new Error("Failed to generate spritesheet");
 
+    // determine which poses have json files
+    var eligiblePoses = await this.determinePoses();
+
+    // go through each pose and getPoseSpritesheet
     var poseFilenames = []; // pixel lab
-    poseFilenames[0] = await this.getPoseSpritesheet(fileName, "falling"); 
-    poseFilenames[1] = await this.getPoseSpritesheet(fileName, "fighting"); 
-    poseFilenames[2] = await this.getPoseSpritesheet(fileName, "punching");
+    for (const pose of eligiblePoses) {
+      poseFilenames.push(await this.getPoseSpritesheet(fileName, pose));
+    }
 
     // check success of all poses
     if (poseFilenames.some(filename => filename === null)) throw new Error("Failed to generate pose spritesheet");

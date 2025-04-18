@@ -16,50 +16,12 @@ The goal of this project is to act as an http server that works with the project
 
 Once you set up your .ENV API key, run the unity client found on the satoshi-client project or run tests through localhost:3016 or Main.ts constructor().
 
+# How to add new Poses
 
+Each pose needs 4 .json files placed in public/skeletons.  To generate these .json, use Aseprite + PixelLab extension.  There is a .aseprite file to work off of in public/skeletons with a default (standing) skeleton.  
 
-
-
---------------------------
-To-Do: Finish Setting up to AWS
---------------------------
-
-1. SSH: Create project folders and set up to receive gitpush command
-
-ssh aws
-mkdir satoshi-server
-mkdir satoshi-server.git                  // bare directory isolates version control from live environment
-cd satoshi-server.git
-git init --bare
-
-nano hooks/post-receive               // this is how the repo will deploy files to website
-
-    // copy and paste the below for TS projects (JS will need a different third line):
-
-    #!/bin/sh
-    GIT_WORK_TREE=/home/ubuntu/satoshi-server git checkout -f main
-    pm2 restart /home/ubuntu/satoshi-server/3016-satoshi-server.ts --interpreter="ts-node"
-    
-chmod +x hooks/post-receive           // makes hook executable
-
-2. TERMINAL: Set up 'gitpush' command on local computer
-
-How to set up 'git pushall' from terminal:
-git remote add lightsail ssh://ubuntu@44.239.156.31/home/ubuntu/satoshi-server.git 
-git config --global core.sshCommand "ssh -i ~/.ssh/botswana_lightsail_keypair.pem"
-git remote add github https://github.com/autemox/satoshi-server.git  
-git config --global alias.pushall '!git push github main && git push lightsail main && codemapper .'
-git pushall
-
-3. Transfer over .env Variables
-
-Typically I use lysle.net:1000 to transfer them via virtualmin file manager
-
-4. SSH: Inform pm2 about your new project
-
-cd satoshi-server                                            // from ubuntu folder
-npm install
-pm2 start 3016-satoshi-server.ts --interpreter="ts-node"     // for ts
-pm2 save
-pm2 list                                                 // make sure it successfully is running
-
+Tips:
+- CTRL+SPACE+E modifies the skeleton
+- The trial version of Aseprite does not support the PixelLab extension
+- LLMs are good at small adjustments to existing .json files:  Do mention that its 64x64 format if you want to ask the LLM to 'move the left hand one pixel down', because the .json are in a normalized, %-based, format
+- Main.ts' determinePoses() function will automatically detect new poses once 4 .json files exist for that pose
