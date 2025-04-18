@@ -26,7 +26,7 @@
           <button id="logoutBtn" class="btn btn-sm btn-outline-secondary">Logout</button>
         </div>
         
-        <form action="/generate-compiled-spritesheet" method="POST">
+        <form action="<%= urlPath %>/generate-compiled-spritesheet" method="POST">
           <div class="mb-3">
             <label for="prompt" class="form-label">Character Prompt:</label>
             <input type="text" id="prompt" name="prompt" class="form-control" required>
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Functions
   function checkAuthStatus() {
-    fetch('/api/auth/check')
+    fetch('<%= urlPath %>/api/auth/check')
       .then(response => response.json())
       .then(data => {
         if (data.authenticated) {
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    fetch('/api/auth/login', {
+    fetch('<%= urlPath %>/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password })
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function logout() {
-    fetch('/api/auth/logout')
+    fetch('<%= urlPath %>/api/auth/logout')
       .then(response => response.json())
       .then(data => {
         if (data.success) {

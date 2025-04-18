@@ -71,7 +71,7 @@ export class Routes
         const files = await fs.readdir(spritesheetsDir);
         const content = files.map((file: string) => {
           if (file.startsWith('.')) return ''; // ignore hidden files like .ds_store
-          const filePath = path.join('/images/compiled_spritesheets', file);
+          const filePath = path.join(process.env.URL_PATH+'/images/compiled_spritesheets', file);
           return `<div class="spritesheet-container">
             <img src="${filePath}" alt="${file}" style="image-rendering: pixelated;">
           </div>`;
