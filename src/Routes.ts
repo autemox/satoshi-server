@@ -43,7 +43,7 @@ export class Routes
         if (now - lastRequest < this.limitToOneCallEveryXMinutes * 60 * 1000) {
 
           // User is rate limited
-          return res.redirect('/?alert=' + encodeURIComponent('Please wait at least 5 minutes between generations'));
+          return res.redirect(process.env.URL_PATH+'/?alert=' + encodeURIComponent('Please wait at least 5 minutes between generations'));
         }
         
         // Update the rate limiter with current timestamp
@@ -53,7 +53,7 @@ export class Routes
         this.main.getSpritesheetAndPoses(prompt);
     
         // redirect to / with an alert
-        res.redirect('/?alert=' + encodeURIComponent('Now generating spritesheets... please refresh this page in 5 minutes'));
+        res.redirect(process.env.URL_PATH+'/?alert=' + encodeURIComponent('Now generating spritesheets... please refresh this page in 5 minutes'));
         
       } catch (error) {
         console.error('Error processing generation request:', error);
