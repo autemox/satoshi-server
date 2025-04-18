@@ -1,12 +1,13 @@
 //----
-// This is an example of a express server, which many of my typescript projects use
+// Express server
+// Used to serve a test page at localhost:3016
+// and to handle API requests from the satoshi-client project, a unity game
 //----
 
 import express, { Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import rateLimit from 'express-rate-limit';
 import basicAuth from 'express-basic-auth';
-import { ExampleClass } from './ExampleClass';
 import { Main } from './Main';
 import path from 'path';
 import dotenv from 'dotenv';

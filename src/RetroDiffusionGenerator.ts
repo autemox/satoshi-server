@@ -1,3 +1,8 @@
+//---------
+// Uses RetroDiffusion API to generate a 4-directional, 4-frame walk animation spritesheet based on a simple string prompt
+//---------
+
+
 import axios from 'axios';
 import fs from 'fs';
 import dotenv from 'dotenv';
