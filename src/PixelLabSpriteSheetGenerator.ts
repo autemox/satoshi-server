@@ -17,11 +17,12 @@ export class PixelLabSpritesheetGenerator
     console.log("attempting to generate pose.  spriteSheetFileName:", spriteSheetFileName, " pose:", pose);
 
     const directions = ['north', 'east', 'south', 'west'];
-    const frameSize = 48;
-    const targetSize = 64;
 
     const imageBuffer = readFileSync("./public/images/spritesheets/" + spriteSheetFileName);
     const spriteSheet = await loadImage(imageBuffer);
+
+    const frameSize = spriteSheet.height/4; // determine frame size by dividing height of spritesheet by 4.  this allows for different size spritesheets
+    const targetSize = 64; // must be 64 for pixel lab 
 
     const directionBase64s: Record<string, string> = {};
     for (let i = 0; i < directions.length; i++) {
@@ -78,8 +79,8 @@ export class PixelLabSpritesheetGenerator
     if (base64EastSprite && base64WestSprite && base64NorthSprite && base64SouthSprite) {
         console.log("generating pose spritesheet with 4 directional images");
       
-        const croppedSize = 48;
-        const sourceSize = 64;
+        const croppedSize = frameSize; // from earlier
+        const sourceSize = targetSize; // from earlier
         const cropOffset = (sourceSize - croppedSize) / 2;
       
         // Create final combined spritesheet canvas (48x48 per sprite)

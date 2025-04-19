@@ -22,8 +22,14 @@ export class Main {
     
     this.httpServer = new HttpServer(this);
 
-    // run an example
-   // this.getSpritesheetAndPoses ("chicken");
+    // run an example 
+    this.runExamples();
+  }
+
+  async runExamples() {
+
+    // check known spritesheets
+    await this.getSpritesheetAndPoses ("fire sorceress");
   }
 
   // determine what poses we have (ignore 'default') by looking at the json's in public/skeletons folder
@@ -61,6 +67,7 @@ export class Main {
 
     // determine which poses have json files
     var eligiblePoses = await this.determinePoses();
+    console.log("Queuing Pose Spritesheet generation for eligible poses:", eligiblePoses);
 
     // go through each pose and getPoseSpritesheet
     var poseFilenames = []; // pixel lab
@@ -75,7 +82,7 @@ export class Main {
     const validFilenames: string[] = poseFilenames.filter((filename): filename is string => filename !== null);
 
     // compile all poses into a single spritesheet
-    this.compileSpritesheet([fileName, ...validFilenames]);
+    await this.compileSpritesheet([fileName, ...validFilenames]);
   }
 
   // combines spritesheets from /public/images/spritesheets into a single spritesheet for /public/images/compiled_spritesheets
