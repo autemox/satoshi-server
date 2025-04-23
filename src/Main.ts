@@ -29,7 +29,23 @@ export class Main {
   async runExamples() {
 
     // check known spritesheets
+    /*
+    await this.getSpritesheetAndPoses ("druid");
+    await this.getSpritesheetAndPoses ("rogue");
     await this.getSpritesheetAndPoses ("fire sorceress");
+    await this.getSpritesheetAndPoses ("blue water sorceress");
+    await this.getSpritesheetAndPoses ("chicken");
+    await this.getSpritesheetAndPoses ("fox wearing a bandana mask");
+    await this.getSpritesheetAndPoses ("jesus");
+    await this.getSpritesheetAndPoses ("pothead bear");
+    await this.getSpritesheetAndPoses ("pretty demon girl");
+    await this.getSpritesheetAndPoses ("ranger with a bow");
+    await this.getSpritesheetAndPoses ("red sorceress");
+    await this.getSpritesheetAndPoses ("royal knight");
+    await this.getSpritesheetAndPoses ("skeleton");
+    await this.getSpritesheetAndPoses ("small town guard");
+    await this.getSpritesheetAndPoses ("trump");
+    */
   }
 
   // determine what poses we have (ignore 'default') by looking at the json's in public/skeletons folder
