@@ -61,6 +61,17 @@ export class Routes
       }
     });
     
+    // Home page route
+    this.router.get('/skeleton', async (req: Request, res: Response) => {
+      try {
+
+        const viewData = { };
+        res.render('skeletonTool', { viewData });
+      } catch (error) {
+        console.error('Error fetching homepage data:', error);
+        res.status(500).send('Server error');
+      }
+    });
         
     // Home page route
     this.router.get('/', async (req: Request, res: Response) => {

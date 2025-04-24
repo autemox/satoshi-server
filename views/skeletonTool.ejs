@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Skeleton Tool</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+    }
+    #viewport {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background-color: #1e1e1e;
+      cursor: grab;
+    }
+    image {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #toolbar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #222;
+      border-radius: 8px;
+      padding: 4px;
+      z-index: 10;
+    }
+
+    .tool-button {
+      font-size: 20px;
+      padding: 6px;
+      background: transparent;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .tool-button.active {
+      background: #444;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <svg id="viewport" viewBox="0 0 1024 1024">
+    <g id="scene" transform="translate(480, 480) scale(8)">
+      <rect x="0" y="0" width="64" height="64" stroke="white" fill="none" />
+      <image href="/images/image.png" x="0" y="0" width="64" height="64" />
+      <g id="joints-layer"></g>
+    </g>
+  </svg>
+
+  <div id="toolbar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="color: white; font-family: 'Arial', sans-serif; font-size: 14px; white-space: nowrap;">
+        Lysle.net Skeleton Tools
+      </div>
+      <button data-tool="point" class="tool-button" title="Blank"></button>
+      <button data-tool="point" class="tool-button" title="Rect Select">⛶</button>
+      <button data-tool="point" class="tool-button" title="Multi-Rect Select">⿻</button>
+      <button data-tool="point" class="tool-button" title="Point Select">⊹</button>
+    </div>
+  </div>
+
+  <script type="module" src="/scripts/skeleton/main.js"></script>
+</body>
+</html>
