@@ -36,23 +36,113 @@ export class PixelPoser {
     }
   }
 
-  async generatePose(base64Image: string, pose: string, direction: string): Promise<Buffer|null> {
-    console.log(`🦴 Generating pose: "${pose}", direction: "${direction}"`);
+    // takes a pose string and direction and finds relavent json files from pose
+    async generatePose(base64Image: string, pose: string, direction: string): Promise<Buffer|null> {
+      console.log(`🦴 Generating pose: "${pose}", direction: "${direction}"`);
+  
+      // Load reference skeleton (reference)
+      const referencePath = path.join(process.cwd(), 'public', 'skeletons', `default-${direction}.json`);
+      const referenceData = JSON.parse(fs.readFileSync(referencePath, 'utf-8')) as SkeletonData;
+      console.log(`🦴 reference data loaded from: ${referencePath}`);
+  
+      // Load target pose skeleton
+      const posePath = path.join(process.cwd(), 'public', 'skeletons', `${pose}-${direction}.json`);
+      const poseData = JSON.parse(fs.readFileSync(posePath, 'utf-8')) as SkeletonData;
+      console.log(`🦴 Pose data loaded from: ${posePath}`);
+      
+      // Validate skeletons
+      if (referenceData.pose_keypoints.length > 1) 
+        throw new Error(`❌ referenceData contains more than one skeleton frame (found ${referenceData.pose_keypoints.length})`);
+      if (poseData.pose_keypoints.length > 1) 
+        throw new Error(`❌ poseData contains more than one skeleton frame (found ${poseData.pose_keypoints.length})`);
+      if (!referenceData.pose_keypoints?.[0] || !poseData.pose_keypoints?.[0]) 
+        throw new Error('❌ Skeleton JSON files are missing pose_keypoints');
+  
+      // Call the base method with the loaded skeletons
+      return this.generatePoseWithSkeletons(base64Image, referenceData.pose_keypoints[0], poseData.pose_keypoints[0], direction, pose);
+    }
 
-    // Load reference skeleton (reference).  This is the same for all retrodiffusion generated sprites
-    const referencePath = path.join(process.cwd(), 'public', 'skeletons', `default-${direction}.json`);
-    const referenceData = JSON.parse(fs.readFileSync(referencePath, 'utf-8')) as SkeletonData;
-    console.log(`🦴 reference data loaded from: ${referencePath}`);
-
-    // Load target pose skeleton (e.g., falling).  create this with aseprite  > pixel lab extension > animate with skeleton > export skeleton for API
-    const posePath = path.join(process.cwd(), 'public', 'skeletons', `${pose}-${direction}.json`);
-    const poseData = JSON.parse(fs.readFileSync(posePath, 'utf-8')) as SkeletonData;
-    console.log(`🦴 Pose data loaded from: ${posePath}`);
+    // New method - takes 2 skeletons + 1 reference image
+  async generatePoseWithSkeletons(base64Image: string, referenceSkeleton: Keypoint[], skeletonToGenerateFrom: Keypoint[], direction: string, poseForSaveFile?: string): Promise<Buffer|null> {
     
-    // check validity of skeletons, each json should have exactly 1 skeleton frame in it
-    if (referenceData.pose_keypoints.length > 1) throw new Error(`❌ referenceData contains more than one skeleton frame (found ${referenceData.pose_keypoints.length})`);
-    if (poseData.pose_keypoints.length > 1) throw new Error(`❌ poseData contains more than one skeleton frame (found ${poseData.pose_keypoints.length})`);
-    if (!referenceData.pose_keypoints?.[0] || !poseData.pose_keypoints?.[0]) throw new Error('❌ Skeleton JSON files are missing pose_keypoints');
+    console.log(`🦴 Generating pose with provided skeletons, direction: "${direction}"`);
+    console.log(`🦴 base64Image details: ${base64Image}`);
+    console.log(`🦴 referenceSkeleton details: ${JSON.stringify(referenceSkeleton)}`);
+    console.log(`🦴 skeletonToGenerateFrom details: ${JSON.stringify(skeletonToGenerateFrom)}`);
+    console.log(`🦴 direction: ${direction}`);
+    console.log(`🦴 poseForSaveFile: ${poseForSaveFile}`);
+    console.log(`🦴 ------------`);
+
+    // Call the advanced method by duplicating the reference skeleton and image
+    return this.generatePoseWithMultipleSkeletons(
+      base64Image,          // Reference image #1
+      base64Image,          // Duplicate
+      referenceSkeleton,    // Reference skeleton #1
+      referenceSkeleton,    // Duplicate
+      skeletonToGenerateFrom,       // Target skeleton to generate an image from this skeleton
+      direction,
+      poseForSaveFile
+    );
+  }
+
+  StripDataUrl(input: string): string {
+    // Check if it's a data URL and strip the prefix if present
+    const matches = input.match(/^data:image\/\w+;base64,(.*)$/);
+    return matches ? matches[1] : input;
+  }
+
+  // Advanced method - takes 3 skeletons + 2 reference images, this has the retry logic
+  async generatePoseWithMultipleSkeletons(
+    base64Image1: string,
+    base64Image2: string,
+    skeleton1: Keypoint[],
+    skeleton2: Keypoint[],
+    skeletonToGenerateFrom: Keypoint[],
+    direction: string,
+    poseForSaveFile?: string
+  ): Promise<Buffer|null> {
+    console.log(`🦴 Generating pose with multiple skeletons, direction: "${direction}"`);
+    
+    // Try up to 5 times
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      console.log(`🔄 Attempt ${attempt} of 5`);
+      
+      const result = await this.generatePoseWithMultipleSkeletonsWithoutRetry(
+        base64Image1,
+        base64Image2,
+        skeleton1,
+        skeleton2,
+        skeletonToGenerateFrom,
+        direction,
+        poseForSaveFile
+      );
+      
+      if (result) return result; // Success!
+      
+      // Wait 2 seconds before retrying
+      if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    console.error('❌ All retry attempts failed');
+    return null;
+  }
+  
+  // Performs the actual API call without retry logic
+  private async generatePoseWithMultipleSkeletonsWithoutRetry(
+    base64Image1: string,
+    base64Image2: string,
+    skeleton1: Keypoint[],
+    skeleton2: Keypoint[],
+    skeletonToGenerateFrom: Keypoint[],
+    direction: string,
+    poseForSaveFile?: string
+  ): Promise<Buffer|null> {
+
+    // convert date url images to base64 string only images
+    base64Image1 = this.StripDataUrl(base64Image1);
+    base64Image2 = this.StripDataUrl(base64Image2);
+    console.log(`🦴 base64Image1: ${base64Image1.length} bytes`);
+    console.log(`🦴 base64Image2: ${base64Image2.length} bytes`);
 
     // Convert normalized keypoints to absolute positions
     const toAbsolute = (frame: Keypoint[]): Keypoint[] =>
@@ -70,17 +160,17 @@ export class PixelPoser {
         isometric: false,
         oblique_projection: false,
         skeleton_keypoints: [
-          referenceData.pose_keypoints[0],  // Frame 1 — frozen
-          referenceData.pose_keypoints[0],  // Frame 2 — frozen (duplicate of frame 1)
-          poseData.pose_keypoints[0]        // Frame 3 — to generate
+          skeleton1,  // Frame 1 — frozen
+          skeleton2,  // Frame 2 — frozen (duplicate of frame 1)
+          skeletonToGenerateFrom        // Frame 3 — to generate
         ],
         reference_image: {
           type: 'base64',
-          base64: base64Image
+          base64: base64Image1
         },
         inpainting_images: [
-          { type: 'base64', base64: base64Image },  // Freeze frame 1
-          { type: 'base64', base64: base64Image },  // Freeze frame 2
+          { type: 'base64', base64: base64Image1 },  // Freeze frame 1
+          { type: 'base64', base64: base64Image2 },  // Freeze frame 2
           null                                      // Generate frame 3
         ],
         mask_images: [
@@ -90,7 +180,7 @@ export class PixelPoser {
         ],
         color_image: {
           type: 'base64',
-          base64: base64Image // lock avaialble palette colors
+          base64: base64Image1 // lock avaialble palette colors
         }
       };
 
@@ -115,22 +205,23 @@ export class PixelPoser {
 
       if (images.length > 0) {
 
-        // Save single sprite to a temp folder
-        let lastBuffer: Buffer | null = null;
-        images.forEach((img: { base64: string }, index: number) => {
-          const suffix = index + 1;
-          const outputPath = path.join(process.cwd(), "public", "images", "temp", `${pose}-${direction}-${suffix}.png`);
-          const buffer = Buffer.from(img.base64, 'base64');
+        // Get the last image (the generated frame)
+        const lastImage = images[images.length - 1];
+        const buffer = Buffer.from(lastImage.base64, 'base64');
+        
+        // Only save to disk if we have a pose name
+        if (poseForSaveFile !== '') {
+          const outputPath = path.join(process.cwd(), "public", "images", "temp", `${poseForSaveFile}-${direction}.png`);
           fs.writeFileSync(outputPath, buffer);
-          console.log(`💾 Saved: ${pose}-${direction}-${suffix}.png`);
-          if (suffix === 3) {
-            lastBuffer = buffer;
-          }
-        });
-
-        // Return single sprite to the function caller- likely PixelLabSpriteSheetGenerator
-        return lastBuffer;
+          console.log(`💾 Saved: ${poseForSaveFile}-${direction}.png`);
+        }
+        
+        // Return the buffer
+        return buffer;
       }
+      
+      return null;
+
     } catch (err: any) {
       console.error('❌ API Error:', err.response?.data || err.message);
     }

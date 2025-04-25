@@ -140,10 +140,8 @@ export class SkeletonRenderer {
 
       const handleMouseDownOnPivot = (e) => {
         // this never fires
-        console.log(`(click) ${key} on skeleton ${this.id}`);
         this.mouseDownOnPivot(e, kp, key, isSelected);
       }
-      console.log(`addeventlistener ${key} on skeleton ${this.id}`);
       pivotArea.addEventListener('mousedown', handleMouseDownOnPivot);
       pivot.addEventListener('mousedown', handleMouseDownOnPivot);
       dot.addEventListener('mousedown', handleMouseDownOnPivot);
@@ -234,7 +232,7 @@ export class SkeletonRenderer {
       text.textContent = `${icon} ${label}`;
       text.addEventListener('click', (e) => {
         console.log(`(click) ${label} on skeleton ${this.id}`);
-        callback(); // ✅ Trigger action
+        callback(this.id); // ✅ Trigger action
         menuGroup.setAttribute('visibility', 'hidden'); // auto-close menu
         e.stopPropagation();
       });

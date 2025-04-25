@@ -6,6 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { Main } from './Main';
+import { PixelPoser } from './PixelLabPoser';
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -98,6 +99,53 @@ export class Routes
     } catch (error) {
         console.error('Error fetching homepage data:', error);
         res.status(500).send('Server error');
+      }
+    });
+
+    // Add this to your setupRoutes method in the Routes class
+    this.router.post('/api/generate-from-skeleton', async (req: Request, res: Response) => {
+      try {
+        console.log('/api/generate-from-skeleton called');
+        
+        // Log the entire request body for debugging
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        
+        const { refImage, refImage2 = null, refSkeleton1, refSkeleton2 = null, skeletonToGenerateFrom, direction = "west" } = req.body;
+        
+        // Log the extracted values
+        console.log('refImage length:', refImage ? refImage.length : 'undefined');
+        console.log('refSkeleton1:', refSkeleton1 ? `Array with ${refSkeleton1.length} items` : 'undefined');
+        console.log('skeletonToGenerateFrom:', skeletonToGenerateFrom ? `Array with ${skeletonToGenerateFrom.length} items` : 'undefined');
+        console.log('direction:', direction);
+        
+        if (!refImage || !refSkeleton1 || !skeletonToGenerateFrom) {
+          console.log('Missing required fields!');
+          return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+        
+        try {
+          let pixelPoser = new PixelPoser();
+          console.log('PixelPoser created successfully');
+          
+          let imageBuffer = refImage2 && refSkeleton2
+            ? await pixelPoser.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction)
+            : await pixelPoser.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction);
+          
+          if (!imageBuffer) {
+            console.log('No image buffer returned from PixelPoser');
+            return res.status(500).json({ success: false, error: 'Failed to generate image' });
+          }
+          
+          console.log('Image generated successfully, buffer size:', imageBuffer.length);
+          res.json({ success: true, image: imageBuffer.toString('base64') });
+          
+        } catch (error: any) {
+          console.error('Error in PixelPoser:', error);
+          return res.status(500).json({ success: false, error: `PixelPoser error: ${error.message || 'Unknown error'}` });
+        }
+      } catch (error) {
+        console.error('Error generating image from skeleton:', error);
+        res.status(500).json({ success: false, error: 'Server error while generating image' });
       }
     });
 

@@ -28,6 +28,7 @@ export class Main {
 
   async runExamples() {
 
+    
     // check known spritesheets
     /*
     await this.getSpritesheetAndPoses ("druid");

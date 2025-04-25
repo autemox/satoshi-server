@@ -1,4 +1,13 @@
-# About
+# The Skeleton Tool
+
+Example of how to get image data from a skeleton:
+
+const imageDataUrl = ViewState.skeletons.find(s => s.id === ViewState.activeSkeleton)?.imageEl?.getAttribute('href');
+
+
+
+
+# The Extend Retrodiffusion Spritesheet
 
 This project utilizes PixelLab and RetroDiffusion API to generate spritesheets.  It utilizes 3 primary classes:
 

@@ -108,15 +108,15 @@ function addSkeleton(id, keypoints) {
   }
   
   // --- Deselect active skeleton if clicking outside ---
-  svg.addEventListener('mousedown', (e) => {
-    console.log('(click) Deselect active skeleton');
-    const target = /** @type {HTMLElement} */ (e.target);
+  /*svg.addEventListener('mousedown', (e) => {
+    console.log('(click) attempt deselect active skeleton');
+    const target = /** @type {HTMLElement} *//* (e.target);
     const isInsideBox = target.closest('g[id^="skeleton"]');
     if (!isInsideBox || target.id === 'plus-box') {
       ViewState.activeSkeleton = '';
       ViewState.skeletons.forEach(s => s.renderer.draw());
     }
-  });
+  });*/
 
 (async function () {
   try {
