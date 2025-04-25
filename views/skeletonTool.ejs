@@ -32,8 +32,17 @@
       z-index: 10;
     }
 
-    .tool-button {
-      font-size: 20px;
+  .action-button {
+  font-size: 10px;
+    padding: 6px;
+    background: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+
+  .tool-button {
+    font-size: 20px;
       padding: 6px;
       background: transparent;
       color: white;
@@ -61,10 +70,13 @@
       <div style="color: white; font-family: 'Arial', sans-serif; font-size: 14px; white-space: nowrap;">
         Lysle.net Skeleton Tools
       </div>
-      <button data-tool="point" class="tool-button" title="Blank"></button>
-      <button data-tool="point" class="tool-button" title="Rect Select">⛶</button>
-      <button data-tool="point" class="tool-button" title="Multi-Rect Select">⿻</button>
-      <button data-tool="point" class="tool-button" title="Point Select">⊹</button>
+      <button data-tool="select" class="tool-button" title="Blank"></button>
+      <button data-tool="point" class="tool-button" title="Single Point Selection Tool">⊹</button>
+      <button data-tool="multi" class="tool-button" title="Multi Frame Selection Tool">⿻</button>
+      <button data-tool="select" class="tool-button" title="Blank"></button>
+      <button data-button="save" class="action-button" title="Save .lyslesheet">💾 Save</button>
+      <button data-button="load" class="action-button" title="Load .lyslesheet">📂 Load</button>
+      <button data-button="export" class="action-button" title="Export Spritesheet">🏞️ Export</button>
     </div>
   </div>
 

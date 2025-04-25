@@ -59,9 +59,53 @@ export class SkeletonRenderer {
     this.selectedPoints = selectedPoints;
     this.isDraggingPoint = isDraggingPoint;
     this.dragTarget = dragTarget;
+    this.generations = []; // 🔥 NEW: holds { status: "generating" | "done", image: optional }
+    
+  }
+
+  addGeneration() {
+    this.generations.push({ status: 'generating', image: null });
+    this.draw();
+  }
+
+  completeGeneration(index, imageDataUrl) {
+    if (this.generations[index]) {
+      this.generations[index].status = 'done';
+      this.generations[index].image = imageDataUrl;
+      this.draw();
+    }
+  }
+
+  approveGeneration(index) {
+    const gen = this.generations[index];
+    if (!gen || !gen.image) return;
+    
+    // Move the image to the main skeleton box
+    const skeleton = ViewState.skeletons.find(s => s.id === this.id);
+    if (skeleton && skeleton.imageEl) {
+      // Set the image source
+      skeleton.imageEl.setAttribute('href', gen.image);
+      
+      // Move the image to the beginning of its parent container
+      // so it appears below all other elements (including the skeleton)
+      const parent = skeleton.imageEl.parentNode;
+      if (parent) {
+        parent.removeChild(skeleton.imageEl);
+        parent.insertBefore(skeleton.imageEl, parent.firstChild);
+      }
+    }
+  
+    this.generations.splice(index, 1); // remove from generations
+    this.draw();
+  }
+
+  rejectGeneration(index) {
+    this.generations.splice(index, 1); // just remove
+    this.draw();
   }
 
   draw() {
+    
     this.layer.innerHTML = '';
 
     const map = {};
@@ -79,15 +123,32 @@ export class SkeletonRenderer {
     bgHitbox.style.cursor = 'pointer';
     bgHitbox.addEventListener('mousedown', (e) => {
       console.log(`(click) Background on skeleton ${this.id}`);
-      ViewState.activeSkeleton = this.id;
-    
-      if (this.getActiveTool() === 'point') {
+      
+      // Handle frame selection with modifier keys
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        // Toggle selection for this skeleton
+        if (ViewState.activeSkeletons.has(this.id)) {
+          ViewState.activeSkeletons.delete(this.id);
+          console.log(`Removed skeleton ${this.id} from selection`);
+        } else {
+          ViewState.activeSkeletons.add(this.id);
+          console.log(`Added skeleton ${this.id} to selection`);
+        }
+      } else {
+        // If no modifier key, select only this skeleton
+        ViewState.activeSkeletons.clear();
+        ViewState.activeSkeletons.add(this.id);
+        console.log(`Selected only skeleton ${this.id}`);
+      }
+      
+      // If point tool is active and no modifier key, clear point selections
+      if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
         this.selectedPoints.clear();
       }
-    
-      // ✅ Redraw all skeletons so boxes update!
+      
+      // Redraw all skeletons to update selection visuals
       ViewState.skeletons.forEach(s => s.renderer.draw());
-    
+      
       e.stopPropagation();
     });
     this.layer.appendChild(bgHitbox);
@@ -152,7 +213,7 @@ export class SkeletonRenderer {
     }
 
     // box
-    const isActive = ViewState.activeSkeleton === this.id;
+    const isActive = ViewState.activeSkeletons.has(this.id);
     const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     box.setAttribute('x', '0');
     box.setAttribute('y', '0');
@@ -242,10 +303,83 @@ export class SkeletonRenderer {
     // Toggle menu
     let menuOpen = false;
     menuButton.addEventListener('click', (e) => {
+
+      // make sure that frame is selected
+      if (!ViewState.activeSkeletons.has(this.id)) {
+        ViewState.activeSkeletons.clear();
+        ViewState.activeSkeletons.add(this.id);
+        ViewState.skeletons.forEach(s => s.renderer.draw());
+        console.log(`Selected skeleton ${this.id}`);
+      }
       console.log(`(click) Menu button on skeleton ${this.id}`);
       menuOpen = !menuOpen;
       menuGroup.setAttribute('visibility', menuOpen ? 'visible' : 'hidden');
       e.stopPropagation();
+    });
+
+    const generationStartY = 70; // below the main 64x64 box
+    this.generations.forEach((gen, i) => {
+      const yOffset = generationStartY + i * 70;
+
+      // Black background box
+      const genBox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      genBox.setAttribute('x', '0');
+      genBox.setAttribute('y', yOffset.toString());
+      genBox.setAttribute('width', '64');
+      genBox.setAttribute('height', '64');
+      genBox.setAttribute('fill', '#111');
+      genBox.setAttribute('stroke', 'white');
+      genBox.setAttribute('stroke-width', '0.5');
+      this.layer.appendChild(genBox);
+
+      if (gen.status === 'generating') {
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '32');
+        text.setAttribute('y', (yOffset + 35).toString());
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', 'white');
+        text.setAttribute('font-size', '6');
+        text.setAttribute('font-family', 'sans-serif');
+        text.textContent = 'Generating...';
+        this.layer.appendChild(text);
+      } else if (gen.status === 'done' && gen.image) {
+        // Draw the image
+        const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        img.setAttribute('x', '0');
+        img.setAttribute('y', yOffset.toString());
+        img.setAttribute('width', '64');
+        img.setAttribute('height', '64');
+        img.setAttribute('href', gen.image);
+        this.layer.appendChild(img);
+
+        // ✅ Approve Button
+        const approve = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        approve.setAttribute('x', '4');
+        approve.setAttribute('y', (yOffset + 60).toString());
+        approve.setAttribute('font-size', '10');
+        approve.setAttribute('fill', 'lime');
+        approve.style.cursor = 'pointer';
+        approve.textContent = '✅';
+        approve.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.approveGeneration(i);
+        });
+        this.layer.appendChild(approve);
+
+        // ❌ Reject Button
+        const reject = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        reject.setAttribute('x', '54');
+        reject.setAttribute('y', (yOffset + 60).toString());
+        reject.setAttribute('font-size', '10');
+        reject.setAttribute('fill', 'red');
+        reject.style.cursor = 'pointer';
+        reject.textContent = '❌';
+        reject.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.rejectGeneration(i);
+        });
+        this.layer.appendChild(reject);
+      }
     });
   }
 
@@ -258,6 +392,20 @@ export class SkeletonRenderer {
    */
   mouseDownOnPivot(e, kp, key, isSelected) {
     if (this.getActiveTool() !== 'point') return;
+
+    // make sure that frame is selected
+    if (!ViewState.activeSkeletons.has(this.id)) {
+      
+      // If shift/ctrl/meta is pressed, add to selection, otherwise clear and select just this one
+      if (e.shiftKey || e.ctrlKey || e.metaKey) ViewState.activeSkeletons.add(this.id);
+      else {
+        this.selectedPoints.clear(); // clear all active pivot points
+        ViewState.activeSkeletons.clear(); // clear other active skeletons
+        ViewState.activeSkeletons.add(this.id);
+      }
+      // Redraw all skeletons to update selection visuals
+      ViewState.skeletons.forEach(s => s.renderer.draw());
+    }
 
     ViewState.mouseDownTime = performance.now();
     ViewState.notAClick = false;

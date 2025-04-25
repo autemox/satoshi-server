@@ -120,7 +120,7 @@ export class PixelPoser {
       if (result) return result; // Success!
       
       // Wait 2 seconds before retrying
-      if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 2000));
+      if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 10000));
     }
     
     console.error('❌ All retry attempts failed');
@@ -195,7 +195,7 @@ export class PixelPoser {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 180000 // 180 seconds (3 minutes)
+        timeout: 600000 // 10 minutes
       });
 
       // Response received
