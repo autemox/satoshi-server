@@ -58,7 +58,7 @@ export class Main {
     // Extract poses that have all 4 directional JSON files
     const poseCounts: { [pose: string]: Set<string> } = {};
     for (const file of allFiles) {
-      const match = file.match(/^(.+)-(east|north|south|west)\.json$/);
+      const match = file.match(/^(.+)-(north|east|south|west)\.json$/);
       if (match) {
         const poseName = match[1];
         const direction = match[2];

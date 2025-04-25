@@ -70,10 +70,10 @@ export class PixelLabSpritesheetGenerator
     };
 
     // Generate all poses with retry logic
-    const base64EastSprite = await tryGeneratePose(directionBase64s.east, pose, 'east');
-    const base64WestSprite = await tryGeneratePose(directionBase64s.west, pose, 'west');
     const base64NorthSprite = await tryGeneratePose(directionBase64s.north, pose, 'north');
+    const base64EastSprite = await tryGeneratePose(directionBase64s.east, pose, 'east');
     const base64SouthSprite = await tryGeneratePose(directionBase64s.south, pose, 'south');
+    const base64WestSprite = await tryGeneratePose(directionBase64s.west, pose, 'west');
 
     // put the 4 sprites into a single spritesheet
     if (base64EastSprite && base64WestSprite && base64NorthSprite && base64SouthSprite) {

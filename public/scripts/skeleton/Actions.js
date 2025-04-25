@@ -1,13 +1,95 @@
 // Actions.js
 import { ViewState } from './ViewState.js';
 
-export function uploadJson(skeletonId) {
-  console.log('[ACTION] Upload JSON.  id:', skeletonId);
-  const active = skeletonId || ViewState.activeSkeleton;
-  if (!active) {
-    alert('Please select a skeleton first');
+
+export async function skeletonToClipboard() {
+  console.log('[ACTION] Skeleton To Clipboard');
+
+  const activeSkeletons = Array.from(ViewState.activeSkeletons);
+  if (activeSkeletons.length === 0) {
+    alert('Please select at least one skeleton');
     return;
   }
+
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+
+  const exportData = [];
+  activeSkeletons.forEach(activeId => {
+    const skeleton = allSkeletons.find(s => s.id === activeId);
+    if (!skeleton) {
+      console.warn('[COPY] Skeleton not found for id:', activeId);
+      return;
+    }
+    exportData.push({ id: activeId, pose_keypoints: skeleton.renderer.keypoints });
+  });
+
+  try {
+    const text = JSON.stringify(exportData, null, 2);
+    await navigator.clipboard.writeText(text);
+    console.log('[COPY] Copied skeleton(s) to clipboard');
+    showToast('Skeleton copied to clipboard');
+  } catch (err) {
+    console.error('[COPY] Failed to copy to clipboard:', err);
+    alert('Failed to copy to clipboard: ' + err.message);
+  }
+}
+
+export async function skeletonFromClipboard() {
+  console.log('[ACTION] Skeleton From Clipboard');
+
+  const activeSkeletons = Array.from(ViewState.activeSkeletons);
+  if (activeSkeletons.length === 0) {
+    alert('Please select at least one skeleton');
+    return;
+  }
+
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+
+  try {
+    const text = await navigator.clipboard.readText();
+    const jsonData = JSON.parse(text);
+
+    if (!Array.isArray(jsonData)) {
+      throw new Error('Clipboard does not contain a valid skeleton array');
+    }
+
+    activeSkeletons.forEach(activeId => {
+      const skeleton = allSkeletons.find(s => s.id === activeId);
+      if (!skeleton) {
+        console.warn('[PASTE] Skeleton not found for id:', activeId);
+        return;
+      }
+
+      const clipboardEntry = jsonData.find(entry => entry.id === activeId) || jsonData[0];
+      if (!clipboardEntry || !clipboardEntry.pose_keypoints) {
+        console.warn('[PASTE] Clipboard entry missing for skeleton', activeId);
+        return;
+      }
+
+      skeleton.renderer.keypoints = JSON.parse(JSON.stringify(clipboardEntry.pose_keypoints));
+      skeleton.renderer.draw();
+      console.log(`[PASTE] Successfully loaded keypoints for ${activeId}`);
+      showToast('Skeleton pasted from clipboard');
+    });
+
+  } catch (err) {
+    console.error('[PASTE] Failed to parse clipboard data:', err);
+    alert('Failed to paste from clipboard: ' + err.message);
+  }
+}
+
+
+export function uploadJson() {
+  console.log('[ACTION] Upload JSON');
+
+  const activeSkeletons = Array.from(ViewState.activeSkeletons);
+  if (activeSkeletons.length === 0) {
+    alert('Please select at least one skeleton');
+    return;
+  }
+
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+  console.log('[DEBUG] All skeleton ids:', allSkeletons.map(s => s.id));
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -17,7 +99,10 @@ export function uploadJson(skeletonId) {
 
   fileInput.addEventListener('change', function (e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      document.body.removeChild(fileInput);
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = function (event) {
@@ -27,12 +112,18 @@ export function uploadJson(skeletonId) {
           throw new Error('Invalid JSON format. Expected "pose_keypoints" array.');
         }
 
-        const skeleton = ViewState.skeletons.find(s => s.id === active);
-        if (!skeleton) return console.warn('[UPLOAD] Skeleton not found');
+        activeSkeletons.forEach(activeId => {
+          const skeleton = allSkeletons.find(s => s.id === activeId);
+          if (!skeleton) {
+            console.warn('[UPLOAD] Skeleton not found for id:', activeId);
+            return;
+          }
 
-        skeleton.renderer.keypoints = JSON.parse(JSON.stringify(jsonData.pose_keypoints[0]));
-        skeleton.renderer.draw();
-        console.log(`[UPLOAD] Successfully loaded keypoints for ${active}`);
+          skeleton.renderer.keypoints = JSON.parse(JSON.stringify(jsonData.pose_keypoints[0]));
+          skeleton.renderer.draw();
+          console.log(`[UPLOAD] Successfully loaded keypoints for ${activeId}`);
+        });
+
       } catch (err) {
         console.error('[UPLOAD] Failed to parse JSON:', err);
         alert('Failed to parse JSON: ' + err.message);
@@ -54,29 +145,70 @@ export function uploadJson(skeletonId) {
 export function downloadJson() {
   console.log('[ACTION] Download JSON');
 
-  const active = ViewState.activeSkeleton;
+  const activeSkeletons = Array.from(ViewState.activeSkeletons);
+  if (activeSkeletons.length === 0) {
+    alert('Please select at least one skeleton');
+    return;
+  }
+
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+  console.log('[DEBUG] All skeleton ids:', allSkeletons.map(s => s.id));
+
+  activeSkeletons.forEach(activeId => {
+    const skeleton = allSkeletons.find(s => s.id === activeId);
+    if (!skeleton) {
+      console.warn('[DOWNLOAD] Skeleton not found for id:', activeId);
+      return;
+    }
+
+    const exportData = { pose_keypoints: [skeleton.renderer.keypoints] };
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeId}.json`;
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  });
+}
+
+export function downloadImage(skeletonId) {
+  console.log('[ACTION] Download Image');
+
+  const active = skeletonId || ViewState.activeSkeleton;
   if (!active) {
     alert('Please select a skeleton first');
     return;
   }
 
-  const skeleton = ViewState.skeletons.find(s => s.id === active);
-  if (!skeleton) return console.warn('[DOWNLOAD] Skeleton not found');
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+const skeleton = allSkeletons.find(s => s.id === active);
+  if (!skeleton || !skeleton.imageEl) {
+    console.warn('[DOWNLOAD IMAGE] Skeleton or image not found');
+    return;
+  }
 
-  const exportData = { pose_keypoints: [skeleton.renderer.keypoints] };
-  const jsonString = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonString], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  const href = skeleton.imageEl.getAttribute('href');
+  if (!href) {
+    alert('No image to download');
+    return;
+  }
 
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `${active}.json`;
+  a.href = href;
+  a.download = `${active}.png`; // Save as PNG
   document.body.appendChild(a);
   a.click();
 
   setTimeout(() => {
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }, 100);
 }
 
@@ -88,7 +220,8 @@ export function uploadImage(skeletonId) {
     return;
   }
 
-  const skeleton = ViewState.skeletons.find(s => s.id === active);
+  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
+const skeleton = allSkeletons.find(s => s.id === active);
   if (!skeleton || !skeleton.imageEl) return console.warn('[UPLOAD] Skeleton/imageEl not found');
 
   const fileInput = document.createElement('input');

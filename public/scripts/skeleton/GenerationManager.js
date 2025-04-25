@@ -1,4 +1,5 @@
 import { ViewState } from './ViewState.js';
+import { reflowRows } from './Main.js';
 
 // Singleton to manage all image generations
 class GenerationManager {
@@ -24,6 +25,7 @@ class GenerationManager {
       
       // Add generation indicator to show it's queued
       skeleton.renderer.addGeneration();
+      reflowRows(); // redraw the rows below the generation
       const generationIndex = skeleton.renderer.generations.length - 1;
       
       // Store the generation index with the queue item
@@ -94,6 +96,7 @@ async processNext() {
       
       const imageDataUrl = `data:image/png;base64,${data.image}`;
       skeleton.renderer.completeGeneration(this.currentGeneration.generationIndex, imageDataUrl);
+      reflowRows();
       
       resolve(data);
     } catch (error) {
@@ -102,6 +105,7 @@ async processNext() {
       // Clean up the generation indicator
       if (skeleton && this.currentGeneration.generationIndex !== null) {
         skeleton.renderer.rejectGeneration(this.currentGeneration.generationIndex);
+        reflowRows();
       }
       
       reject(error);
@@ -116,51 +120,74 @@ async processNext() {
 // Create and export a singleton instance
 export const generationManager = new GenerationManager();
 
-// Updated generation function that uses the manager
-export function generateImage(skeletonId) {
-  console.log('[ACTION] Generate Image. id:', skeletonId);
-  
-  // Use the first selected skeleton if none specified
-  const active = skeletonId || 
-    (ViewState.activeSkeletons.size > 0 ? Array.from(ViewState.activeSkeletons)[0] : null);
-  
-  if (!active) {
-    alert('Please select a skeleton first');
+export function generateImage() {
+  console.log('[ACTION] Generate Image.');
+
+  const selectedIds = Array.from(ViewState.activeSkeletons);
+  if (selectedIds.length === 0) {
+    alert('Please select at least one skeleton frame');
     return;
   }
-  
-  const skeleton = ViewState.skeletons.find(s => s.id === active);
-  if (!skeleton) {
-    console.warn('[GENERATE] Skeleton not found');
+
+  console.log('[GENERATE] Selected skeletons:', selectedIds);
+
+  const direction = ViewState.activeDirection;
+  const directionSkeletons = ViewState.skeletonsByDirection[direction] || [];
+
+  if (directionSkeletons.length < 2) {
+    alert(`Not enough reference skeletons found for direction "${direction}"`);
     return;
   }
-  
-  const refSkeleton = ViewState.skeletons.find(s => s.id === 'skeleton1');
-  if (!refSkeleton) {
-    alert('Reference skeleton (skeleton1) is required');
+
+  const refSkeleton1 = directionSkeletons[0]; // [0] = Required Reference
+  const refSkeleton2 = directionSkeletons[1]; // [1] = Optional Reference (optional)
+
+  console.log('[GENERATE] Reference 1:', refSkeleton1.id);
+  console.log('[GENERATE] Reference 2:', refSkeleton2.id);
+
+  const refImageSrc1 = refSkeleton1.imageEl?.getAttribute('href');
+  const refImageSrc2 = refSkeleton2.imageEl?.getAttribute('href');
+
+  if (!refImageSrc1 || refImageSrc1 === 'data:,' || refImageSrc1.trim() === '') {
+    alert(`Please upload an image to the required reference skeleton first (${refSkeleton1.id})`);
     return;
   }
-  
-  const refImageSrc = refSkeleton.imageEl?.getAttribute('href');
-  if (!refImageSrc || refImageSrc === 'data:,') {
-    alert('Please upload an image to the reference skeleton first');
+
+  const selectedSkeletons = selectedIds
+    .map(id => ViewState.skeletons.find(s => s.id === id))
+    .filter(Boolean);
+
+  if (selectedSkeletons.length === 0) {
+    alert('Selected skeletons not found');
     return;
   }
-  
+
+  const frames = selectedSkeletons.map(skel => ({
+    skeletonId: skel.id,
+    keypoints: skel.renderer.keypoints,
+  }));
+
+  console.log('[GENERATE] Frames to generate:', frames.map(f => f.skeletonId));
+
   const payload = {
-    refImage: refImageSrc,
-    refSkeleton1: refSkeleton.renderer.keypoints,
-    skeletonToGenerateFrom: skeleton.renderer.keypoints,
-    direction: "west"
+    refImage: refImageSrc1,
+    refSkeleton1: refSkeleton1.renderer.keypoints,
+    refImage2: (refImageSrc2 && refImageSrc2 !== 'data:,' ? refImageSrc2 : null),
+    refSkeleton2: (refImageSrc2 && refImageSrc2 !== 'data:,' ? refSkeleton2.renderer.keypoints : null),
+    skeletonToGenerateFrom: frames[0].keypoints, // <<-- NOT frames[], just frames[0]
+    direction: ViewState.activeDirection,
   };
-  
-  // Add to queue and handle result/error
-  generationManager.addToQueue(active, payload)
-    .then(data => {
-      console.log(`[GENERATE] Generation completed for ${active}`);
-    })
-    .catch(error => {
-      console.error(`[GENERATE] Generation failed for ${active}:`, error);
-      alert(`Error generating image: ${error.message}`);
-    });
+
+  console.log('[GENERATE] Final payload:', payload);
+
+  frames.forEach(frame => {
+    generationManager.addToQueue(frame.skeletonId, payload)
+      .then(data => {
+        console.log(`[GENERATE] ✅ Generation completed for ${frame.skeletonId}`);
+      })
+      .catch(error => {
+        console.error(`[GENERATE] ❌ Generation failed for ${frame.skeletonId}:`, error);
+        alert(`Error generating image for ${frame.skeletonId}: ${error.message}`);
+      });
+  });
 }

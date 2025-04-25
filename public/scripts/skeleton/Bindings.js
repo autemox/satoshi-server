@@ -1,5 +1,6 @@
 // Bindings.js
 import { ViewState } from './ViewState.js';
+import { showToast } from './utils.js';
 
 export function handleDelete() {
   console.log('[DELETE] Attempting to remove images...');
@@ -49,11 +50,7 @@ export function handleCopy() {
       navigator.clipboard.write([item])
         .then(() => {
           console.log(`[COPY] Copied image from ${firstActive}`);
-          const message = document.createElement('div');
-          message.textContent = 'Copied!';
-          message.style.cssText = 'font-family: Arial, sans-serif; font-size: 10px; position: fixed; bottom: 10px; right: 10px; padding: 5px; background: #4caf50; color: white; border-radius: 3px;';
-          document.body.appendChild(message);
-          setTimeout(() => document.body.removeChild(message), 2000);
+          showToast('Image copied to clipboard');
         })
         .catch(err => {
           console.error('[COPY] Clipboard write failed:', err);
@@ -115,6 +112,7 @@ export async function handlePaste() {
             parent.insertBefore(skeleton.imageEl, parent.firstChild);
           }
           console.log(`[PASTE] Pasted image into skeleton ${skeletonId}`);
+          showToast('Image pasted to frame');
         });
 
         return;

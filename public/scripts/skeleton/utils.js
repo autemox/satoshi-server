@@ -5,7 +5,43 @@
  * @param {string} id
  * @returns {SVGSVGElement}
  */
+
+import { ViewState } from './ViewState.js';
+
 export function getSvg(id) {
     // @ts-ignore
     return /** @type {SVGSVGElement} */ (document.getElementById(id));
   }
+
+
+export function showToast(message, color = 'green') {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.position = 'fixed';
+  toast.style.bottom = '20px';
+  toast.style.right = '20px';
+  toast.style.fontFamily = 'Arial, sans-serif';
+  toast.style.background = color;
+  toast.style.color = 'white';
+  toast.style.padding = '10px 15px';
+  toast.style.borderRadius = '8px';
+  toast.style.fontSize = '14px';
+  toast.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+  toast.style.zIndex = 9999;
+  toast.style.opacity = '0';
+  toast.style.transition = 'opacity 0.3s ease';
+
+  document.body.appendChild(toast);
+
+  // Force reflow to apply transition
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 2000); // Show for 2 seconds
+}

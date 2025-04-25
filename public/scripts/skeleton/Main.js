@@ -6,13 +6,13 @@ import { bindShortcuts } from './Bindings.js';
 import { generateImage } from './GenerationManager.js';
 import { saveLysleSheet, loadLysleSheet, exportSpriteSheet } from './LysleSheetManager.js';
 
+console.log('Main.js loaded');
+
 // listen for CTRL C and CTRL V
 bindShortcuts(); 
 
 const svg = getSvg('viewport');
 const scene = /** @type {SVGGElement} */ (svg.getElementById('scene'));
-
-ViewState.skeletons = [];
 
 const MIN_SKELETONS = 3;
 
@@ -28,124 +28,300 @@ const isDraggingPoint = { current: false };
 /** @type {{ current: { skeleton: SkeletonRenderer, point: {label: string, x: number, y: number} } | null }} */
 const dragTarget = { current: null };
 
-// --- Add skeleton ---
-function addSkeleton(id, keypoints) {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('id', id);
-    scene.appendChild(group);
-  
-    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.appendChild(layer);
-  
-    // 💡 Create and insert the image element BEFORE the renderer draws on top
-    const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-    imageEl.setAttribute('x', '0');
-    imageEl.setAttribute('y', '0');
-    imageEl.setAttribute('width', '64');
-    imageEl.setAttribute('height', '64');
-    imageEl.setAttribute('href', ''); // empty initially
-    imageEl.setAttribute('pointer-events', 'none');
-    group.appendChild(imageEl); // must be below bones/joints
-  
-    const offsetX = ViewState.skeletons.length * 70;
-    group.setAttribute('transform', `translate(${offsetX}, 0)`);
-  
-    const renderer = new SkeletonRenderer(
-      id,
-      layer,
-      JSON.parse(JSON.stringify(keypoints)), // deep copy
-      () => activeTool,
-      selectedPoints,
-      isDraggingPoint,
-      dragTarget
-    );
-  
-    // ✅ Store imageEl too
-    ViewState.skeletons.push({ id, group, renderer, imageEl });
-    renderer.draw();
-  
-    updatePlusBox();
+let activeTool = 'point';
+const getActiveTool = () => activeTool;
+
+// constants
+const BASE_ROW_HEIGHT = 80; // normal height for direction rows
+const EXTRA_ROW_HEIGHT = 70; // extra height for each generation row
+
+export function getDirectionRowOffset(direction) {
+  const directions = ['north', 'east', 'south', 'west'];
+  const index = directions.indexOf(direction);
+  if (index === -1) return 0;
+
+  // calculate total "base" offset from the order (north first, then east, south, west)
+  let offset = index * BASE_ROW_HEIGHT;
+
+  // Now, add extra height for previous directions if they have tall frames
+  for (let i = 0; i < index; i++) {
+    const dir = directions[i];
+    const extraRows = getMaxGenerationsPerDirection(dir);
+    offset += extraRows * EXTRA_ROW_HEIGHT;
   }
+
+  return offset;
+}
+function getMaxGenerationsPerDirection(direction) {
+  const skeletons = ViewState.skeletonsByDirection[direction] || [];
+  let maxGenerations = 0;
+  
+  for (const skel of skeletons) {
+    const genCount = skel.renderer.generations.length;
+    if (genCount > maxGenerations) {
+      maxGenerations = genCount;
+    }
+  }
+
+  return maxGenerations;
+}
+
+export function reflowRows() {
+  const directions = ['north', 'east', 'south', 'west'];
+  
+  let y = 0; // start from top
+
+  directions.forEach(direction => {
+    const skeletons = ViewState.skeletonsByDirection[direction] || [];
+
+    skeletons.forEach((skeleton, i) => {
+      const x = i * 70;
+      skeleton.group.setAttribute('transform', `translate(${x}, ${y})`);
+    });
+
+    // Calculate how tall this row needs to be
+    const baseHeight = BASE_ROW_HEIGHT;
+    const maxGen = getMaxGenerationsPerDirection(direction);
+    const extraHeight = maxGen * EXTRA_ROW_HEIGHT;
+    
+    y += baseHeight + extraHeight;
+  });
+
+  updateAllPlusBoxes(); // move the + buttons too
+  updateDirectionLabels(); // move the labels too
+}
+
+// --- Add skeleton ---
+// Modified addSkeleton function
+function addSkeleton(id, keypoints, direction) {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('id', id);
+  scene.appendChild(group);
+
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.appendChild(layer);
+
+  // Create and insert the image element BEFORE the renderer draws on top
+  const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  imageEl.setAttribute('x', '0');
+  imageEl.setAttribute('y', '0');
+  imageEl.setAttribute('width', '64');
+  imageEl.setAttribute('height', '64');
+  imageEl.setAttribute('href', ''); // empty initially
+  imageEl.setAttribute('pointer-events', 'none');
+  group.appendChild(imageEl); // must be below bones/joints
+
+  // Calculate position based on direction and number of skeletons in that direction
+  const directionSkeletons = ViewState.skeletonsByDirection[direction];
+  const offsetX = directionSkeletons.length * 70;
+  const offsetY = getDirectionRowOffset(direction);
+  group.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
+
+  const renderer = new SkeletonRenderer(
+    id,
+    layer,
+    JSON.parse(JSON.stringify(keypoints)), // deep copy
+    () => activeTool,
+    selectedPoints,
+    isDraggingPoint,
+    dragTarget,
+    direction,
+  );
+
+  // Store imageEl too
+  const skeletonObj = { id, group, renderer, imageEl, direction };
+  ViewState.skeletonsByDirection[direction].push(skeletonObj);
+  renderer.draw();
+
+  updatePlusBox(direction);
+}
   
   // --- Add the plus (+) box ---
-  function addPlusBox() {
-    let plusBox = svg.getElementById('plus-box');
-    if (plusBox) plusBox.remove();
+  // Modified addPlusBox function
+function addPlusBox(direction) {
+  let plusBoxId = `plus-box-${direction}`;
+  let plusBox = svg.getElementById(plusBoxId);
+  if (plusBox) plusBox.remove();
+
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('id', plusBoxId);
   
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('id', 'plus-box');
-    const x = ViewState.skeletons.length * 70;
+  const directionSkeletons = ViewState.skeletonsByDirection[direction];
+  const x = directionSkeletons.length * 70;
+  const y = getDirectionRowOffset(direction);
+
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x.toString());
+  rect.setAttribute('y', y.toString());
+  rect.setAttribute('width', '64');
+  rect.setAttribute('height', '64');
+  rect.setAttribute('stroke', 'white');
+  rect.setAttribute('fill', '#222');
+
+  const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  plus.textContent = '+';
+  plus.setAttribute('x', (x + 32).toString());
+  plus.setAttribute('y', (y + 38).toString());
+  plus.setAttribute('fill', 'white');
+  plus.setAttribute('font-size', '32');
+  plus.setAttribute('text-anchor', 'middle');
+  plus.setAttribute('pointer-events', 'none');
+
+  group.appendChild(rect);
+  group.appendChild(plus);
+  scene.appendChild(group);
+
+  rect.addEventListener('mousedown', () => {
+    console.log(`(click) Adding new skeleton to ${direction}`);
+    ViewState.activeDirection = direction; // Set active direction when adding
+    const dirSkeletons = ViewState.skeletonsByDirection[direction];
+    
+    // Use the first skeleton of this direction as template, or the first skeleton of any direction if empty
+    let templateSkeleton;
+    if (dirSkeletons.length > 0) {
+      templateSkeleton = dirSkeletons[0].renderer.keypoints;
+    } else {
+      // Find first available skeleton from any direction
+      for (const dir of ['north', 'east', 'south', 'west']) {
+        if (ViewState.skeletonsByDirection[dir].length > 0) {
+          templateSkeleton = ViewState.skeletonsByDirection[dir][0].renderer.keypoints;
+          break;
+        }
+      }
+    }
+    
+    if (templateSkeleton) {
+      const keypointsCopy = JSON.parse(JSON.stringify(templateSkeleton));
+      const newId = `${direction}-skeleton${dirSkeletons.length + 1}`;
+      addSkeleton(newId, keypointsCopy, direction);
+    } else {
+      console.error('No template skeleton found');
+    }
+  });
+}
+
+function updateAllPlusBoxes() {
+  ['north', 'east', 'south', 'west'].forEach(dir => {
+    updatePlusBox(dir);
+  });
+}
+
+function updatePlusBox(direction) {
+  addPlusBox(direction); // regenerate the + box for specified direction
+}
+
+// Function to add direction labels
+function addDirectionLabels() {
+  const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  labelGroup.setAttribute('id', 'direction-labels');
   
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', x.toString());
-    rect.setAttribute('y', '0');
-    rect.setAttribute('width', '64');
-    rect.setAttribute('height', '64');
-    rect.setAttribute('stroke', 'white');
-    rect.setAttribute('fill', '#222');
-  
-    const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    plus.textContent = '+';
-    plus.setAttribute('x', (x + 32).toString());
-    plus.setAttribute('y', '38');
-    plus.setAttribute('fill', 'white');
-    plus.setAttribute('font-size', '32');
-    plus.setAttribute('text-anchor', 'middle');
-    plus.setAttribute('pointer-events', 'none');
-  
-    group.appendChild(rect);
-    group.appendChild(plus);
-    scene.appendChild(group);
-  
-    rect.addEventListener('mousedown', () => {
-      console.log('(click) Adding new skeleton');
-      const keypointsCopy = JSON.parse(JSON.stringify(ViewState.skeletons[0].renderer.keypoints));
-      const newId = `skeleton${ViewState.skeletons.length + 1}`;
-      addSkeleton(newId, keypointsCopy);
+  const directions = ['North', 'East', 'South', "West"];
+  directions.forEach((dir, index) => {
+    const y = getDirectionRowOffset(dir.toLowerCase()) + 32; // Center vertically in row
+    
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', '-60'); // Position to the left of skeletons
+    label.setAttribute('y', y.toString());
+    label.setAttribute('fill', 'white');
+    label.setAttribute('font-size', '14');
+    label.setAttribute('text-anchor', 'start');
+    label.setAttribute('dominant-baseline', 'middle');
+    label.textContent = dir;
+    
+    // Make the label clickable to set active direction
+    label.style.cursor = 'pointer';
+    label.addEventListener('click', () => {
+      ViewState.activeDirection = dir.toLowerCase();
+      // Update visual indication of active direction
+      updateDirectionLabels();
     });
+    
+    labelGroup.appendChild(label);
+  });
+  
+  scene.appendChild(labelGroup);
+}
+
+// Function to update the visual state of direction labels
+function updateDirectionLabels() {
+  const labelGroup = svg.getElementById('direction-labels');
+  if (!labelGroup) return;
+  
+  // Update all labels
+  Array.from(labelGroup.children).forEach(label => {
+    const labelText = label.textContent?.toLowerCase();
+    if (labelText === ViewState.activeDirection) {
+      label.setAttribute('font-weight', 'bold');
+      label.setAttribute('fill', '#3399ff'); // Highlight active direction
+    } else {
+      label.setAttribute('font-weight', 'normal');
+      label.setAttribute('fill', 'white');
+    }
+  });
+}
+  
+
+  function disableTextSelection() {
+    const style = document.createElement('style');
+    style.textContent = `
+      svg text {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        cursor: default;
+      }
+    `;
+    document.head.appendChild(style);
   }
   
-  function updatePlusBox() {
-    addPlusBox(); // always regenerate the + box at new right side
-  }
+  if (!window.__MAIN_INITIALIZED__) {
+    window.__MAIN_INITIALIZED__ = true;
   
-  // --- Deselect active skeleton if clicking outside ---
-  /*svg.addEventListener('mousedown', (e) => {
-    console.log('(click) attempt deselect active skeleton');
-    const target = /** @type {HTMLElement} *//* (e.target);
-    const isInsideBox = target.closest('g[id^="skeleton"]');
-    if (!isInsideBox || target.id === 'plus-box') {
-      ViewState.activeSkeleton = '';
-      ViewState.skeletons.forEach(s => s.renderer.draw());
+    (async function () {
+      try {
+        console.warn('Initializing...');
+
+      const res = await fetch('/default-west.json');
+      const data = await res.json();
+      const keypoints = data.pose_keypoints[0];
+  
+      if (!scene) throw new Error('Scene group not found');
+
+      console.log('Initializing load button listener.');
+      const saveButton = document.querySelector('[data-button="save"]');
+      if (saveButton) saveButton.addEventListener('click', saveLysleSheet);
+      const loadButton = document.querySelector('[data-button="load"]');
+      if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
+  
+      // Initialize all directions with reference skeletons
+      const directions = ['north', 'east', 'south', 'west'];
+      directions.forEach(direction => {
+        // Create 3 skeletons for each direction (reference, optional reference, and frame 1)
+        for (let i = 1; i <= MIN_SKELETONS; i++) {
+          addSkeleton(`${direction}-skeleton${i}`, keypoints, direction);
+        }
+      });
+  
+      // Set initial active direction
+      ViewState.activeDirection = 'north';
+      
+      // Add direction labels
+      addDirectionLabels();
+      updateDirectionLabels();
+      document.addEventListener('directionChanged', (e) => {
+        updateDirectionLabels();
+      });
+  
+      enablePanAndZoom(scene, svg);
+
+      // Call this function in your initialization
+      disableTextSelection();
+    } catch (err) {
+      console.error('Failed to load keypoints:', err);
     }
-  });*/
-
-(async function () {
-  try {
-    const res = await fetch('/default-west.json');
-    const data = await res.json();
-    const keypoints = data.pose_keypoints[0];
-
-    const svg = getSvg('viewport');
-    const scene = /** @type {SVGGElement} */ (svg.getElementById('scene'));
-
-    if (!scene) throw new Error('Scene group not found');
-
-    const layer = /** @type {SVGGElement} */ (svg.getElementById('joints-layer'));
-
-    // create 3 skeletons
-    for (let i = 1; i <= MIN_SKELETONS; i++) {
-        addSkeleton(`skeleton${i}`, keypoints);
-    }
-
-    enablePanAndZoom(scene, svg);
-
-  } catch (err) {
-    console.error('Failed to load keypoints:', err);
-  }
-})();
-
-let activeTool = 'point';
+  })();
+  
 document.querySelectorAll('.tool-button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
@@ -153,10 +329,6 @@ document.querySelectorAll('.tool-button').forEach(btn => {
     activeTool = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
   });
 });
-const saveButton = document.querySelector('[data-button="save"]');
-if (saveButton) saveButton.addEventListener('click', saveLysleSheet);
-const loadButton = document.querySelector('[data-button="load"]');
-if (loadButton) loadButton.addEventListener('click', loadLysleSheet);
 
 /**
  * Enables pan and zoom interaction
@@ -279,14 +451,6 @@ function enablePanAndZoom(scene, svg) {
     else svg.style.cursor = 'pointer';
   });
 
-    svg.addEventListener('mouseup', () => {
-        isPanning = false;
-        isDraggingPoint.current = false;
-        dragTarget.current = null;
-        if (activeTool === 'hand') svg.style.cursor = 'grab';
-        else svg.style.cursor = 'pointer';
-    });
-
     svg.addEventListener('mousemove', (e) => {
       if (isDraggingPoint.current && dragTarget.current) {
         const rect = svg.getBoundingClientRect();
@@ -392,3 +556,4 @@ function enablePanAndZoom(scene, svg) {
 
   updateTransform(); // initialize
 }
+  }

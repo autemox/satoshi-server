@@ -47,11 +47,13 @@ function getColorForLabel(label) {
 }
 
 
-import { uploadJson, uploadImage, downloadJson, generateImage } from './Actions.js';
+import { uploadJson, uploadImage, downloadImage, downloadJson, generateImage, skeletonToClipboard, skeletonFromClipboard } from './Actions.js';
 import { ViewState } from './ViewState.js';
+import { handleCopy, handlePaste } from './Bindings.js';
+import { showToast } from './utils.js';
 
 export class SkeletonRenderer {
-  constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget) {
+  constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget, direction) {
     this.id = id;
     this.layer = layer;
     this.keypoints = keypoints;
@@ -59,8 +61,8 @@ export class SkeletonRenderer {
     this.selectedPoints = selectedPoints;
     this.isDraggingPoint = isDraggingPoint;
     this.dragTarget = dragTarget;
-    this.generations = []; // 🔥 NEW: holds { status: "generating" | "done", image: optional }
-    
+    this.direction = direction; // New property
+    this.generations = []; // holds { status: "generating" | "done", image: optional }
   }
 
   addGeneration() {
@@ -104,6 +106,16 @@ export class SkeletonRenderer {
     this.draw();
   }
 
+  changeDirection(direction) {
+
+    ViewState.activeDirection = direction;
+    ViewState.activeSkeletons.clear(); // change in direction: clear all active
+    Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
+      skeletonList.forEach(s => s.renderer.draw());
+    });
+    console.log(`Direction changed to ${direction}`);
+  }
+
   draw() {
     
     this.layer.innerHTML = '';
@@ -121,9 +133,17 @@ export class SkeletonRenderer {
     bgHitbox.setAttribute('height', '64');
     bgHitbox.setAttribute('fill', 'rgba(80, 202, 255, 0.02)');
     bgHitbox.style.cursor = 'pointer';
+    // In SkeletonRenderer class
     bgHitbox.addEventListener('mousedown', (e) => {
       console.log(`(click) Background on skeleton ${this.id}`);
       
+      // Set active direction based on this skeleton's direction
+      const previousDirection = ViewState.activeDirection;
+      if (previousDirection !== this.direction)  
+      {
+          this.changeDirection(this.direction);
+      }
+
       // Handle frame selection with modifier keys
       if (e.shiftKey || e.ctrlKey || e.metaKey) {
         // Toggle selection for this skeleton
@@ -141,14 +161,22 @@ export class SkeletonRenderer {
         console.log(`Selected only skeleton ${this.id}`);
       }
       
+      // Dispatch an event if direction changed
+      if (previousDirection !== this.direction) {
+        const changeEvent = new CustomEvent('directionChanged', {
+          detail: { direction: this.direction }
+        });
+        document.dispatchEvent(changeEvent);
+      }
+      
       // If point tool is active and no modifier key, clear point selections
       if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
         this.selectedPoints.clear();
       }
       
-      // Redraw all skeletons to update selection visuals
-      ViewState.skeletons.forEach(s => s.renderer.draw());
-      
+      // Redraw all skeletons in all directions
+      ViewState.skeletons.forEach(s => s.renderer.draw()); // THIS DOESNT WORK //??
+
       e.stopPropagation();
     });
     this.layer.appendChild(bgHitbox);
@@ -233,90 +261,19 @@ export class SkeletonRenderer {
     label.setAttribute('fill', 'white');
     label.setAttribute('font-size', '4');
     label.setAttribute('font-family', 'sans-serif');
-    if (this.id === 'skeleton1')  label.textContent = 'Required Reference';
-    else if (this.id === 'skeleton2')  label.textContent = 'Optional Reference';
+    const skeletonNumber = parseInt(this.id.split('skeleton')[1]); // Get skeleton number from the ID (e.g., "north-skeleton1" -> 1)
+    if (skeletonNumber === 1) label.textContent = 'Required Reference';
+    else if (skeletonNumber === 2) label.textContent = 'Optional Reference';
     else {
-      const num = parseInt(this.id.replace('skeleton', '')) - 2;
+      const num = skeletonNumber - 2;
       label.textContent = `Frame ${num}`;
     }
     this.layer.appendChild(label);
 
-    // === MENU BUTTON (☰) ===
-    const menuButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    menuButton.setAttribute('x', '60');
-    menuButton.setAttribute('y', '60');
-    menuButton.setAttribute('text-anchor', 'middle');
-    menuButton.setAttribute('font-size', '7');
-    menuButton.setAttribute('fill', 'white');
-    menuButton.style.cursor = 'pointer';
-    menuButton.style.userSelect = 'none';
-    menuButton.style.fontFamily = 'sans-serif';
-    menuButton.textContent = '☰';
-    this.layer.appendChild(menuButton);
+    // Draw the menu button
+    this.drawMenuButton(); // this calls to drawMenu() if needed
 
-    // === MENU GROUP CONTAINER ===
-    const menuGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    menuGroup.setAttribute('visibility', 'hidden');
-    menuGroup.setAttribute('transform', 'translate(54, 66)'); // ⬇️ below ☰
-    this.layer.appendChild(menuGroup);
-
-    // Background box for menu
-    const menuBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    const menuWidth = 70;
-    const menuHeight = 47;
-    menuBg.setAttribute('x', '0');
-    menuBg.setAttribute('y', '0');
-    menuBg.setAttribute('width', menuWidth.toString());
-    menuBg.setAttribute('height', menuHeight.toString());
-    menuBg.setAttribute('rx', '3');
-    menuBg.setAttribute('fill', '#2a2a2a');
-    menuBg.setAttribute('stroke', '#888');
-    menuBg.setAttribute('stroke-width', '0.4');
-    menuGroup.appendChild(menuBg);
-
-    const menuItems = [
-      ['📄', 'Upload JSON', uploadJson],
-      ['🏞️', 'Upload Image', uploadImage],
-      ['⬇️', 'Download JSON', downloadJson],
-      ['⚡', 'Generate Image', generateImage],
-    ];
-
-    menuItems.forEach(([icon, label, callback], i) => {
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', '6');
-      text.setAttribute('y', `${10 + i * 10}`);
-      text.setAttribute('font-size', '5');
-      text.setAttribute('fill', 'white');
-      text.style.cursor = 'pointer';
-      text.style.userSelect = 'none';
-      text.style.fontFamily = 'sans-serif';
-      text.textContent = `${icon} ${label}`;
-      text.addEventListener('click', (e) => {
-        console.log(`(click) ${label} on skeleton ${this.id}`);
-        callback(this.id); // ✅ Trigger action
-        menuGroup.setAttribute('visibility', 'hidden'); // auto-close menu
-        e.stopPropagation();
-      });
-      menuGroup.appendChild(text);
-    });
-
-    // Toggle menu
-    let menuOpen = false;
-    menuButton.addEventListener('click', (e) => {
-
-      // make sure that frame is selected
-      if (!ViewState.activeSkeletons.has(this.id)) {
-        ViewState.activeSkeletons.clear();
-        ViewState.activeSkeletons.add(this.id);
-        ViewState.skeletons.forEach(s => s.renderer.draw());
-        console.log(`Selected skeleton ${this.id}`);
-      }
-      console.log(`(click) Menu button on skeleton ${this.id}`);
-      menuOpen = !menuOpen;
-      menuGroup.setAttribute('visibility', menuOpen ? 'visible' : 'hidden');
-      e.stopPropagation();
-    });
-
+    // Draw generations
     const generationStartY = 70; // below the main 64x64 box
     this.generations.forEach((gen, i) => {
       const yOffset = generationStartY + i * 70;
@@ -384,6 +341,225 @@ export class SkeletonRenderer {
   }
 
   /**
+   * Draws the menu button for a skeleton
+   * @param {SVGGElement} parent - The parent layer to add the button to
+   */
+  drawMenuButton() {
+
+    // only draw menu button if this direction is active
+    if (!ViewState.activeSkeletons.has(this.id)) return;
+
+    // Create a group for the menu button with a larger hit area
+    const buttonGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    buttonGroup.setAttribute('id', `menu-button-${this.id}`);
+    
+    // Add a larger invisible hit area
+    const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitArea.setAttribute('x', '54');
+    hitArea.setAttribute('y', '54');
+    hitArea.setAttribute('width', '10');
+    hitArea.setAttribute('height', '10');
+    hitArea.setAttribute('fill', 'rgba(255, 255, 255, 0.01)'); // Nearly invisible
+    hitArea.style.cursor = 'pointer';
+    
+    // Add the menu icon
+    const menuButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    menuButton.setAttribute('x', '60');
+    menuButton.setAttribute('y', '60');
+    menuButton.setAttribute('text-anchor', 'middle');
+    menuButton.setAttribute('font-size', '7');
+    menuButton.setAttribute('fill', 'white');
+    menuButton.setAttribute('pointer-events', 'none'); // Let the hit area handle events
+    menuButton.style.userSelect = 'none';
+    menuButton.style.fontFamily = 'sans-serif';
+    menuButton.textContent = '☰';
+    
+    // Add elements to the group
+    buttonGroup.appendChild(hitArea);
+    buttonGroup.appendChild(menuButton);
+    this.layer.appendChild(buttonGroup);
+    
+    // Add the click handler to the hit area
+    hitArea.addEventListener('mousedown', (e) => {
+      // Prevent event propagation to avoid triggering other handlers
+      e.preventDefault();
+      e.stopPropagation();
+      
+      console.log(`(click) Menu button on skeleton ${this.id}`);
+      
+      // Make sure that frame is selected
+      if (!ViewState.activeSkeletons.has(this.id)) {
+        ViewState.activeSkeletons.clear();
+        ViewState.activeSkeletons.add(this.id);
+        ViewState.skeletonsByDirection[this.direction].forEach(s => s.renderer.draw());
+      }
+      
+      // Toggle the menu
+      const existingMenu = document.getElementById(`menu-${this.id}`);
+      if (existingMenu) {
+        existingMenu.remove();
+      } else {
+        this.drawMenu();
+      }
+    });
+  }
+
+  /**
+   * Draws the menu content when opened
+   */
+  drawMenu() {
+    // Remove any existing menus
+    const existingMenu = document.getElementById(`menu-${this.id}`);
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+  
+    // Create a modal-style window overlay outside the SVG
+    const overlay = document.createElement('div');
+    overlay.setAttribute('id', `menu-${this.id}`);
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '10000';
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = '#2a2a2a';
+    modalContent.style.border = '1px solid #888';
+    modalContent.style.borderRadius = '5px';
+    modalContent.style.padding = '20px';
+    modalContent.style.width = '400px'; // Wider to accommodate two columns
+    modalContent.style.color = 'white';
+    modalContent.style.fontFamily = 'sans-serif';
+    
+    // Add title
+    const title = document.createElement('h3');
+    const selectedIds = Array.from(ViewState.activeSkeletons).sort();
+    title.textContent = selectedIds.join(', ');
+    title.style.margin = '0 0 20px 0';
+    title.style.borderBottom = '1px solid #888';
+    title.style.paddingBottom = '10px';
+    title.style.fontSize = '16px'; // Smaller text
+    modalContent.appendChild(title);
+    
+    // Create grid container for two columns
+    const gridContainer = document.createElement('div');
+    gridContainer.style.display = 'grid';
+    gridContainer.style.gridTemplateColumns = '1fr 1fr'; // Two equal columns
+    gridContainer.style.gap = '10px'; // Space between columns and rows
+    modalContent.appendChild(gridContainer);
+    
+    // Menu items
+    const menuItems = [
+      ['📄', 'Upload JSON', uploadJson],
+      ['⬇️', 'Download JSON', downloadJson],
+      ['🏞️', 'Upload Image', uploadImage],
+      ['🏞️', 'Download Image', downloadImage],
+      ['📋', 'Copy to Clipboard', handleCopy],
+      ['📝', 'Paste from Clipboard', handlePaste],
+      ['📋', 'Skeleton to Clipboard', skeletonToClipboard],
+      ['📝', 'Skeleton from Clipboard', skeletonFromClipboard],
+      ['⚡', 'Generate Using Skeleton', generateImage],
+      ['🔄', 'Generate Using Rotation', () => { console.log('Generate using rotation'); }],
+      // Empty 8th slot to make the grid even
+      ['', '', () => {}]
+    ];
+    
+    // Create buttons for each menu item
+    menuItems.forEach(([icon, label, callback]) => {
+      // Skip empty items
+      if (!label) return;
+      
+      const button = document.createElement('button');
+      button.textContent = `${icon} ${label}`;
+      button.style.display = 'block';
+      button.style.width = '100%';
+      button.style.padding = '8px'; // Smaller padding
+      button.style.margin = '2px 0'; // Smaller margin
+      button.style.backgroundColor = '#444';
+      button.style.color = 'white';
+      button.style.border = 'none';
+      button.style.borderRadius = '3px';
+      button.style.cursor = 'pointer';
+      button.style.fontSize = '14px'; // Smaller text
+      button.style.textAlign = 'left';
+      
+      // Hover effect
+      button.addEventListener('mouseenter', () => {
+        button.style.backgroundColor = '#3399ff';
+      });
+      
+      button.addEventListener('mouseleave', () => {
+        button.style.backgroundColor = '#444';
+      });
+      
+      // Click handler
+      button.addEventListener('click', () => {
+        console.log(`(click) ${label} on skeleton ${this.id}`);
+        callback(this.id);
+        overlay.remove();
+      });
+      
+      gridContainer.appendChild(button);
+    });
+
+    // Add cancel button - full width below the grid
+    const cancelContainer = document.createElement('div');
+    cancelContainer.style.gridColumn = '1 / span 2'; // Span both columns
+    cancelContainer.style.marginTop = '20px'; // Space above the container
+    cancelContainer.style.padding = '0';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = '❌ Close';
+    cancelButton.style.display = 'block';
+    cancelButton.style.width = '100%';
+    cancelButton.style.padding = '10px';
+    cancelButton.style.backgroundColor = '#333';
+    cancelButton.style.color = 'white';
+    cancelButton.style.border = '1px solid #666';
+    cancelButton.style.borderRadius = '5px';
+    cancelButton.style.cursor = 'pointer';
+    cancelButton.style.fontSize = '16px';
+
+    // Add event listener
+    cancelButton.addEventListener('click', () => {
+      overlay.remove();
+    });
+
+    // Nest the button inside the container
+    cancelContainer.appendChild(cancelButton);
+
+    // Then append the container to modalContent
+    modalContent.appendChild(cancelContainer);
+    overlay.appendChild(modalContent);
+    
+    // Allow clicking outside to close
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+    // Add to document body
+    document.body.appendChild(overlay);
+
+    // Close on ESC
+    const escListener = (e) => {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', escListener);
+      }
+    };
+    document.addEventListener('keydown', escListener);
+  }
+
+  /**
    * Handles selecting and potential drag start
    * @param {MouseEvent} e
    * @param {{ label: string, x: number, y: number }} kp
@@ -391,7 +567,17 @@ export class SkeletonRenderer {
    * @param {boolean} isSelected
    */
   mouseDownOnPivot(e, kp, key, isSelected) {
+    console.log(`(click) Pivot on skeleton ${this.id} (${kp.label} tool ${this.getActiveTool()})`);
     if (this.getActiveTool() !== 'point') return;
+
+    // make sure this direction is active by getting the direction from the skeleton
+    //get this skeletons direction
+    if (this.direction !== ViewState.activeDirection) {
+      this.changeDirection(this.direction);
+      console.log(`Direction changed to ${this.direction}`);
+    }
+    else console.log(`Direction already active: ${this.direction}`);
+    
 
     // make sure that frame is selected
     if (!ViewState.activeSkeletons.has(this.id)) {
@@ -412,6 +598,7 @@ export class SkeletonRenderer {
     ViewState.dragKey = key;
 
     if (!isSelected) {
+      console.log(`(click) Selecting ${key} before dragging`);
       this.mouseClick(e, key, isSelected); // select BEFORE drag
     }
 
