@@ -1,6 +1,6 @@
 // @ts-check
 import { SkeletonRenderer } from './SkeletonRenderer.js';
-import { getSvg } from './utils.js';
+import { getSvg, showToast } from './utils.js';
 import { ViewState } from './ViewState.js';
 import { bindShortcuts } from './Bindings.js';
 import { generateImage } from './GenerationManager.js';
@@ -79,7 +79,6 @@ export function reflowRows() {
       skeleton.group.setAttribute('transform', `translate(${x}, ${y})`);
     });
 
-    // Calculate how tall this row needs to be
     const baseHeight = BASE_ROW_HEIGHT;
     const maxGen = getMaxGenerationsPerDirection(direction);
     const extraHeight = maxGen * EXTRA_ROW_HEIGHT;
@@ -87,8 +86,23 @@ export function reflowRows() {
     y += baseHeight + extraHeight;
   });
 
-  updateAllPlusBoxes(); // move the + buttons too
-  updateDirectionLabels(); // move the labels too
+  updateAllPlusBoxes();
+  repositionDirectionLabels(); // <<< 🔥 call it here
+  updateDirectionLabels(); 
+}
+
+function repositionDirectionLabels() {
+  const labelGroup = svg.getElementById('direction-labels');
+  if (!labelGroup) return;
+
+  const directions = ['north', 'east', 'south', 'west'];
+  directions.forEach((dir, index) => {
+    const label = labelGroup.children[index];
+    if (!label) return;
+
+    const y = getDirectionRowOffset(dir) + 32; // consistent with addDirectionLabels
+    label.setAttribute('y', y.toString());
+  });
 }
 
 // --- Add skeleton ---
@@ -200,7 +214,7 @@ function addPlusBox(direction) {
   });
 }
 
-function updateAllPlusBoxes() {
+export function updateAllPlusBoxes() {
   ['north', 'east', 'south', 'west'].forEach(dir => {
     updatePlusBox(dir);
   });
@@ -243,7 +257,7 @@ function addDirectionLabels() {
 }
 
 // Function to update the visual state of direction labels
-function updateDirectionLabels() {
+export function updateDirectionLabels() {
   const labelGroup = svg.getElementById('direction-labels');
   if (!labelGroup) return;
   
@@ -291,6 +305,8 @@ function updateDirectionLabels() {
       console.log('Initializing load button listener.');
       const saveButton = document.querySelector('[data-button="save"]');
       if (saveButton) saveButton.addEventListener('click', saveLysleSheet);
+      const exportButton = document.querySelector('[data-button="export"]');
+      if (exportButton) exportButton.addEventListener('click', exportSpriteSheet);
       const loadButton = document.querySelector('[data-button="load"]');
       if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
   
@@ -322,11 +338,23 @@ function updateDirectionLabels() {
     }
   })();
   
+// only allow one active tool at at time
 document.querySelectorAll('.tool-button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activeTool = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
+    console.log(`Active tool set to ${activeTool}`);
+    showToast(`Tool mode set to: ${activeTool}`, "gray");
+  });
+});
+document.querySelectorAll('.clipboard-mode-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.clipboard-mode-button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ViewState.clipboardMode = btn.getAttribute('clipboard-mode') || 'image';
+    console.log(`Clipboard (CTRL+C) mode set to ${ViewState.clipboardMode}`);
+    showToast(`Clipboard mode set to: ${ViewState.clipboardMode}`, "gray");
   });
 });
 
@@ -402,17 +430,27 @@ function enablePanAndZoom(scene, svg) {
     const isPivot = target?.tagName === 'circle';
     
     if (!isPivot) {
+
+      console.log('(click) Mouse down on SVG, not a point');
       // Handle panning
       isPanning = true;
       lastX = e.clientX;
       lastY = e.clientY;
       svg.style.cursor = 'grabbing';
       
-      // If clicked on empty space (not a skeleton) and no modifier key, clear selections
-      const isInsideSkeleton = target.closest('g[id^="skeleton"]');
-      if (!isInsideSkeleton && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
+      // If clicked on empty space (not a skeleton) and no modifier key, clear selections'
+      const isInsideInteractive =
+        target.closest('g[id^="skeleton"]') ||
+        (target.closest('text') && (
+          target.textContent === '✅' ||
+          target.textContent === '🚫' ||
+          target.textContent === '⚡' ||
+          target.textContent === '☰'
+        ));
+      if (!isInsideInteractive && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
+
+        console.log('(click) Mouse down on SVG, not a skeleton, point, or generation');
         ViewState.activeSkeletons.clear();
-        // Redraw all skeletons
         ViewState.skeletons.forEach(s => s.renderer.draw());
       }
     }

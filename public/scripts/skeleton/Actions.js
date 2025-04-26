@@ -1,83 +1,6 @@
-// Actions.js
 import { ViewState } from './ViewState.js';
-
-
-export async function skeletonToClipboard() {
-  console.log('[ACTION] Skeleton To Clipboard');
-
-  const activeSkeletons = Array.from(ViewState.activeSkeletons);
-  if (activeSkeletons.length === 0) {
-    alert('Please select at least one skeleton');
-    return;
-  }
-
-  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
-
-  const exportData = [];
-  activeSkeletons.forEach(activeId => {
-    const skeleton = allSkeletons.find(s => s.id === activeId);
-    if (!skeleton) {
-      console.warn('[COPY] Skeleton not found for id:', activeId);
-      return;
-    }
-    exportData.push({ id: activeId, pose_keypoints: skeleton.renderer.keypoints });
-  });
-
-  try {
-    const text = JSON.stringify(exportData, null, 2);
-    await navigator.clipboard.writeText(text);
-    console.log('[COPY] Copied skeleton(s) to clipboard');
-    showToast('Skeleton copied to clipboard');
-  } catch (err) {
-    console.error('[COPY] Failed to copy to clipboard:', err);
-    alert('Failed to copy to clipboard: ' + err.message);
-  }
-}
-
-export async function skeletonFromClipboard() {
-  console.log('[ACTION] Skeleton From Clipboard');
-
-  const activeSkeletons = Array.from(ViewState.activeSkeletons);
-  if (activeSkeletons.length === 0) {
-    alert('Please select at least one skeleton');
-    return;
-  }
-
-  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
-
-  try {
-    const text = await navigator.clipboard.readText();
-    const jsonData = JSON.parse(text);
-
-    if (!Array.isArray(jsonData)) {
-      throw new Error('Clipboard does not contain a valid skeleton array');
-    }
-
-    activeSkeletons.forEach(activeId => {
-      const skeleton = allSkeletons.find(s => s.id === activeId);
-      if (!skeleton) {
-        console.warn('[PASTE] Skeleton not found for id:', activeId);
-        return;
-      }
-
-      const clipboardEntry = jsonData.find(entry => entry.id === activeId) || jsonData[0];
-      if (!clipboardEntry || !clipboardEntry.pose_keypoints) {
-        console.warn('[PASTE] Clipboard entry missing for skeleton', activeId);
-        return;
-      }
-
-      skeleton.renderer.keypoints = JSON.parse(JSON.stringify(clipboardEntry.pose_keypoints));
-      skeleton.renderer.draw();
-      console.log(`[PASTE] Successfully loaded keypoints for ${activeId}`);
-      showToast('Skeleton pasted from clipboard');
-    });
-
-  } catch (err) {
-    console.error('[PASTE] Failed to parse clipboard data:', err);
-    alert('Failed to paste from clipboard: ' + err.message);
-  }
-}
-
+import { showToast } from './utils.js';
+import { findSkeletonById } from './utils.js';
 
 export function uploadJson() {
   console.log('[ACTION] Upload JSON');
@@ -113,7 +36,7 @@ export function uploadJson() {
         }
 
         activeSkeletons.forEach(activeId => {
-          const skeleton = allSkeletons.find(s => s.id === activeId);
+          const skeleton = findSkeletonById(activeId);
           if (!skeleton) {
             console.warn('[UPLOAD] Skeleton not found for id:', activeId);
             return;
@@ -155,7 +78,7 @@ export function downloadJson() {
   console.log('[DEBUG] All skeleton ids:', allSkeletons.map(s => s.id));
 
   activeSkeletons.forEach(activeId => {
-    const skeleton = allSkeletons.find(s => s.id === activeId);
+    const skeleton = findSkeletonById(activeId);
     if (!skeleton) {
       console.warn('[DOWNLOAD] Skeleton not found for id:', activeId);
       return;
@@ -188,8 +111,7 @@ export function downloadImage(skeletonId) {
     return;
   }
 
-  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
-const skeleton = allSkeletons.find(s => s.id === active);
+  const skeleton = findSkeletonById(skeletonId);
   if (!skeleton || !skeleton.imageEl) {
     console.warn('[DOWNLOAD IMAGE] Skeleton or image not found');
     return;
@@ -220,8 +142,7 @@ export function uploadImage(skeletonId) {
     return;
   }
 
-  const allSkeletons = Object.values(ViewState.skeletonsByDirection).flat();
-const skeleton = allSkeletons.find(s => s.id === active);
+  const skeleton = findSkeletonById(skeletonId);
   if (!skeleton || !skeleton.imageEl) return console.warn('[UPLOAD] Skeleton/imageEl not found');
 
   const fileInput = document.createElement('input');

@@ -10,7 +10,9 @@
       overflow: hidden;
       height: 100%;
       width: 100%;
+      background: #1e1e1e;
     }
+    
     #viewport {
       width: 100vw;
       height: 100vh;
@@ -18,41 +20,87 @@
       background-color: #1e1e1e;
       cursor: grab;
     }
+    
     image {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
-    #toolbar {
+  
+    #toolbar-left {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: #222;
-      border-radius: 8px;
-      padding: 4px;
-      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+      user-select: none;
     }
-
-  .action-button {
-  font-size: 10px;
-    padding: 6px;
-    background: transparent;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-
-  .tool-button {
-    font-size: 20px;
+  
+    /* ✅ center the right toolbar */
+    #toolbar-right {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      user-select: none;
+    }
+  
+    .toolbar-group {
+      background: #333;
+      border-radius: 8px;
       padding: 6px;
+      display: flex;
+      gap: 6px;
+    }
+  
+    .vertical-group {
+      flex-direction: column;
+      width: 32px;
+      align-items: center;
+    }
+  
+    .action-button {
+      font-size: 10px;
+      padding: 4px 6px;
+      background: transparent;
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: Arial, sans-serif;
+      white-space: nowrap;
+    }
+  
+    .tool-button, .clipboard-mode-button {
+      font-size: 20px;
+      padding: 4px;
       background: transparent;
       color: white;
       border: none;
       cursor: pointer;
     }
-
-    .tool-button.active {
+  
+    .tool-button.active, .clipboard-mode-button.active {
       background: #444;
       border-radius: 4px;
+    }
+  
+    /* ✅ Style the title */
+    .title {
+      font-size: 12px;
+      color: white;
+      font-family: Arial, sans-serif;
+      margin-bottom: 4px;
+      padding-left: 4px; 
+      padding-top: 2px; 
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -65,20 +113,37 @@
     </g>
   </svg>
 
-  <div id="toolbar">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <div style="color: white; font-family: 'Arial', sans-serif; font-size: 14px; white-space: nowrap;">
-        Lysle.net Skeleton Tools
-      </div>
-      <button data-tool="select" class="tool-button" title="Blank"></button>
-      <button data-tool="point" class="tool-button" title="Single Point Selection Tool">⊹</button>
-      <button data-tool="multi" class="tool-button" title="Multi Frame Selection Tool">⿻</button>
-      <button data-tool="select" class="tool-button" title="Blank"></button>
-      <button data-button="save" class="action-button" title="Save .lyslesheet">💾 Save</button>
-      <button data-button="load" class="action-button" title="Load .lyslesheet">📂 Load</button>
-      <button data-button="export" class="action-button" title="Export Spritesheet">🏞️ Export</button>
+<!-- Left toolbar for Save/Load/Export -->
+<div id="toolbar-left">
+  <div class="toolbar-group" style="width: auto; flex-direction: row; align-items: center;">
+    <div class="title">
+      Lysle.net Skeleton Tool
+    </div>
+    <div style="display: flex; gap: 6px; margin-left: 12px;">
+      <button data-button="save" class="action-button" title="Save .lyslesheet">
+        💾<span>Save</span>
+      </button>
+      <button data-button="load" class="action-button" title="Load .lyslesheet">
+        📂<span>Load</span>
+      </button>
+      <button data-button="export" class="action-button" title="Export Spritesheet">
+        🏞️<span>Export</span>
+      </button>
     </div>
   </div>
+</div>
+
+<div id="toolbar-right">
+  <div class="toolbar-group vertical-group">
+    <button data-tool="point" class="tool-button active" title="Single Point Selection Tool">⊹</button>
+    <button data-tool="multi" class="tool-button" title="Multi Frame Selection Tool">⿻</button>
+  </div>
+
+  <div class="toolbar-group vertical-group">
+    <button clipboard-mode="image" class="clipboard-mode-button active" title="Copy/Paste Image">🀥</button>
+    <button clipboard-mode="skeleton" class="clipboard-mode-button" title="Copy/Paste Skeleton">𐀪</button>
+  </div>
+</div>
 
   <script type="module" src="/scripts/skeleton/main.js"></script>
 </body>

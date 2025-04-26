@@ -4,11 +4,91 @@
 
 import { ViewState } from './ViewState.js';
 import { SkeletonRenderer } from './SkeletonRenderer.js';
+import { reflowRows, updateAllPlusBoxes, updateDirectionLabels } from './Main.js';
 
-export function exportSpriteSheet() {
-  // Placeholder for future sprite sheet export
-  console.log('[SPRITESHEET] Export feature coming soon...');
+export async function exportSpriteSheet() {
+  console.log('[SPRITESHEET] Exporting sprite sheet...');
+
+  const directions = ['north', 'east', 'south', 'west'];
+
+  // Find max number of frames (excluding reference frames)
+  let maxFrames = 0;
+  for (const dir of directions) {
+    const skeletons = ViewState.skeletonsByDirection[dir] || [];
+    const frames = skeletons.length - 2; // skip required and optional reference
+    if (frames > maxFrames) maxFrames = frames;
+  }
+
+  const frameSize = 64; // each frame is 64x64
+  const canvasWidth = maxFrames * frameSize;
+  const canvasHeight = directions.length * frameSize;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#000'; // black background
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  for (let row = 0; row < directions.length; row++) {
+    const dir = directions[row];
+    const skeletons = ViewState.skeletonsByDirection[dir] || [];
+
+    // skip first two (reference + optional reference)
+    const frames = skeletons.slice(2);
+
+    for (let col = 0; col < frames.length; col++) {
+      const skeleton = frames[col];
+      const imageHref = skeleton.imageEl?.getAttribute('href');
+      
+      if (!imageHref || imageHref === 'data:,' || imageHref.trim() === '') {
+        console.warn(`[SPRITESHEET] Missing image for ${skeleton.id}`);
+        continue; // Skip empty frames
+      }
+
+      const img = await loadImage(imageHref);
+
+      ctx.drawImage(
+        img,
+        col * frameSize,
+        row * frameSize,
+        frameSize,
+        frameSize
+      );
+    }
+  }
+
+  // Download the canvas as PNG
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sprite-sheet.png';
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }, 'image/png');
+
+  console.log('[SPRITESHEET] Export complete.');
 }
+
+// Helper to load image from href
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // important if images are data: URLs
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = src;
+  });
+}
+
 
 export function saveLysleSheet() {
   console.log('[LYSLESHEET] Saving...');
@@ -141,6 +221,10 @@ export async function loadLysleSheet(getActiveTool, selectedPoints, isDraggingPo
         if (sceneGroup) {
           sceneGroup.setAttribute('transform', `translate(${ViewState.offsetX}, ${ViewState.offsetY}) scale(${ViewState.scale})`);
         }
+
+        reflowRows();
+        updateAllPlusBoxes();
+        updateDirectionLabels();
 
         console.log('[LYSLESHEET] Loaded successfully');
       } catch (err) {

@@ -9,6 +9,7 @@ export const ViewState = {
   dragKey: null, // currently dragging or clicking on this. e.g. skeleton1::LEFT_EYE
   activeSkeletons: new Set(), // selected frames
   activeDirection: 'north', // Current active direction
+  clipboardMode: 'image', // image or skeleton
 
   /** @type {Object.<string, Array<{ id: string, renderer: SkeletonRenderer, group: SVGGElement, imageEl: SVGImageElement }>>} */
   skeletonsByDirection: {

@@ -47,10 +47,10 @@ function getColorForLabel(label) {
 }
 
 
-import { uploadJson, uploadImage, downloadImage, downloadJson, generateImage, skeletonToClipboard, skeletonFromClipboard } from './Actions.js';
+import { uploadJson, uploadImage, downloadImage, downloadJson, generateImage } from './Actions.js';
 import { ViewState } from './ViewState.js';
-import { handleCopy, handlePaste } from './Bindings.js';
-import { showToast } from './utils.js';
+import { handleImageToClipboard, handleImageFromClipboard, handleSkeletonToClipboard, handleSkeletonFromClipboard } from './Bindings.js';
+import { showToast, findSkeletonById } from './utils.js';
 
 export class SkeletonRenderer {
   constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget, direction) {
@@ -78,12 +78,12 @@ export class SkeletonRenderer {
     }
   }
 
-  approveGeneration(index) {
+  approveGeneration(index) { // accept generation
     const gen = this.generations[index];
     if (!gen || !gen.image) return;
     
     // Move the image to the main skeleton box
-    const skeleton = ViewState.skeletons.find(s => s.id === this.id);
+    const skeleton = findSkeletonById(this.id);
     if (skeleton && skeleton.imageEl) {
       // Set the image source
       skeleton.imageEl.setAttribute('href', gen.image);
@@ -271,7 +271,7 @@ export class SkeletonRenderer {
     this.layer.appendChild(label);
 
     // Draw the menu button
-    this.drawMenuButton(); // this calls to drawMenu() if needed
+    this.drawFrameButtons(); // this calls to drawMenu() if needed
 
     // Draw generations
     const generationStartY = 70; // below the main 64x64 box
@@ -309,12 +309,13 @@ export class SkeletonRenderer {
         img.setAttribute('href', gen.image);
         this.layer.appendChild(img);
 
-        // ✅ Approve Button
+        // ✅ Approve Button (accept)
         const approve = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         approve.setAttribute('x', '4');
         approve.setAttribute('y', (yOffset + 60).toString());
         approve.setAttribute('font-size', '10');
         approve.setAttribute('fill', 'lime');
+        approve.setAttribute('pointer-events', 'all');
         approve.style.cursor = 'pointer';
         approve.textContent = '✅';
         approve.addEventListener('click', (e) => {
@@ -325,14 +326,17 @@ export class SkeletonRenderer {
 
         // ❌ Reject Button
         const reject = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        reject.setAttribute('x', '54');
+        reject.setAttribute('x', '52');
         reject.setAttribute('y', (yOffset + 60).toString());
         reject.setAttribute('font-size', '10');
         reject.setAttribute('fill', 'red');
+        reject.setAttribute('pointer-events', 'all');
         reject.style.cursor = 'pointer';
-        reject.textContent = '❌';
+        reject.textContent = '🚫';
         reject.addEventListener('click', (e) => {
-          e.stopPropagation();
+          e.preventDefault();   // <-- new: cancel default SVG behavior
+          e.stopPropagation();  // <-- already good: don't bubble to SVG
+          console.log(`(click) Reject generation ${i} on skeleton ${this.id}`);
           this.rejectGeneration(i);
         });
         this.layer.appendChild(reject);
@@ -344,15 +348,52 @@ export class SkeletonRenderer {
    * Draws the menu button for a skeleton
    * @param {SVGGElement} parent - The parent layer to add the button to
    */
-  drawMenuButton() {
+  drawFrameButtons() {
 
     // only draw menu button if this direction is active
     if (!ViewState.activeSkeletons.has(this.id)) return;
 
-    // Create a group for the menu button with a larger hit area
+    // Create a group for the buttons
     const buttonGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    buttonGroup.setAttribute('id', `menu-button-${this.id}`);
-    
+    buttonGroup.setAttribute('id', `frame-buttons-${this.id}`);
+
+    // ⚡ Lightning bolt button
+    const lightningButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    lightningButton.setAttribute('x', '6'); // adjust left of menu
+    lightningButton.setAttribute('y', '60');
+    lightningButton.setAttribute('text-anchor', 'middle');
+    lightningButton.setAttribute('font-size', '7');
+    lightningButton.setAttribute('fill', 'yellow');
+    lightningButton.setAttribute('pointer-events', 'all'); // allow clicks
+    lightningButton.style.cursor = 'pointer';
+    lightningButton.style.userSelect = 'none';
+    lightningButton.textContent = '⚡';
+
+    // ☰ Menu button
+    const menuButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    menuButton.setAttribute('x', '58');
+    menuButton.setAttribute('y', '60');
+    menuButton.setAttribute('text-anchor', 'middle');
+    menuButton.setAttribute('font-size', '7');
+    menuButton.setAttribute('fill', 'white');
+    menuButton.setAttribute('pointer-events', 'none');
+    menuButton.style.userSelect = 'none';
+    menuButton.textContent = '☰';
+
+    // Add both buttons into the group
+    buttonGroup.appendChild(lightningButton);
+    buttonGroup.appendChild(menuButton);
+    this.layer.appendChild(buttonGroup);
+
+    // Add the click handler for the lightning
+    lightningButton.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[⚡] Quick generate pressed!');
+      generateImage();
+    });
+
+    // (Your existing hitArea + click for menu button stays same)
     // Add a larger invisible hit area
     const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     hitArea.setAttribute('x', '54');
@@ -362,22 +403,8 @@ export class SkeletonRenderer {
     hitArea.setAttribute('fill', 'rgba(255, 255, 255, 0.01)'); // Nearly invisible
     hitArea.style.cursor = 'pointer';
     
-    // Add the menu icon
-    const menuButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    menuButton.setAttribute('x', '60');
-    menuButton.setAttribute('y', '60');
-    menuButton.setAttribute('text-anchor', 'middle');
-    menuButton.setAttribute('font-size', '7');
-    menuButton.setAttribute('fill', 'white');
-    menuButton.setAttribute('pointer-events', 'none'); // Let the hit area handle events
-    menuButton.style.userSelect = 'none';
-    menuButton.style.fontFamily = 'sans-serif';
-    menuButton.textContent = '☰';
-    
     // Add elements to the group
     buttonGroup.appendChild(hitArea);
-    buttonGroup.appendChild(menuButton);
-    this.layer.appendChild(buttonGroup);
     
     // Add the click handler to the hit area
     hitArea.addEventListener('mousedown', (e) => {
@@ -461,10 +488,10 @@ export class SkeletonRenderer {
       ['⬇️', 'Download JSON', downloadJson],
       ['🏞️', 'Upload Image', uploadImage],
       ['🏞️', 'Download Image', downloadImage],
-      ['📋', 'Copy to Clipboard', handleCopy],
-      ['📝', 'Paste from Clipboard', handlePaste],
-      ['📋', 'Skeleton to Clipboard', skeletonToClipboard],
-      ['📝', 'Skeleton from Clipboard', skeletonFromClipboard],
+      ['📋', 'Copy to Clipboard', handleImageToClipboard],
+      ['📝', 'Paste from Clipboard', handleImageFromClipboard],
+      ['📋', 'Skeleton to Clipboard', handleSkeletonToClipboard],
+      ['📝', 'Skeleton from Clipboard', handleSkeletonFromClipboard],
       ['⚡', 'Generate Using Skeleton', generateImage],
       ['🔄', 'Generate Using Rotation', () => { console.log('Generate using rotation'); }],
       // Empty 8th slot to make the grid even

@@ -1,5 +1,6 @@
 import { ViewState } from './ViewState.js';
 import { reflowRows } from './Main.js';
+import { findSkeletonById } from './utils.js';
 
 // Singleton to manage all image generations
 class GenerationManager {
@@ -9,15 +10,14 @@ class GenerationManager {
     this.currentGeneration = null;
   }
   
-  // Add a new generation request to the queue
-  // In GenerationManager.js - modify the addToQueue method
 
+  // Add a new generation request to the queue
   addToQueue(skeletonId, payload) {
     return new Promise((resolve, reject) => {
       console.log(`[GEN MANAGER] Added generation for skeleton ${skeletonId} to queue`);
       
       // Find the skeleton and add a generation indicator immediately
-      const skeleton = ViewState.skeletons.find(s => s.id === skeletonId);
+      const skeleton = findSkeletonById(skeletonId);
       if (!skeleton) {
         reject(new Error(`Skeleton ${skeletonId} not found`));
         return;
@@ -64,7 +64,7 @@ async processNext() {
     console.log(`[GEN MANAGER] Processing generation for skeleton ${skeletonId}`);
     
     // Find the skeleton
-    const skeleton = ViewState.skeletons.find(s => s.id === skeletonId);
+      const skeleton = findSkeletonById(skeletonId);
     if (!skeleton) {
       console.warn(`[GEN MANAGER] Skeleton ${skeletonId} not found, skipping generation`);
       reject(new Error(`Skeleton ${skeletonId} not found`));

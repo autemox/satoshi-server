@@ -45,3 +45,12 @@ export function showToast(message, color = 'green') {
     }, 300);
   }, 2000); // Show for 2 seconds
 }
+
+
+export function findSkeletonById(id) {
+  for (const dir of ['north', 'east', 'south', 'west']) {
+    const skeleton = ViewState.skeletonsByDirection[dir]?.find(s => s.id === id);
+    if (skeleton) return skeleton;
+  }
+  return null;
+}
