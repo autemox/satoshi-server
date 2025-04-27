@@ -110,7 +110,7 @@ export class Routes
         // Log the entire request body for debugging
         console.log('Request body:', JSON.stringify(req.body, null, 2));
         
-        const { refImage, refImage2 = null, refSkeleton1, refSkeleton2 = null, skeletonToGenerateFrom, direction = "west" } = req.body;
+        const { apiKey, refImage, refImage2 = null, refSkeleton1, refSkeleton2 = null, skeletonToGenerateFrom, direction = "west" } = req.body;
         
         // Log the extracted values
         console.log('refImage length:', refImage ? refImage.length : 'undefined');
@@ -128,8 +128,8 @@ export class Routes
           console.log('PixelPoser created successfully');
           
           let imageBuffer = refImage2 && refSkeleton2
-            ? await pixelPoser.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction)
-            : await pixelPoser.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction);
+            ? await pixelPoser.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction, apiKey)
+            : await pixelPoser.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction, apiKey);
           
           if (!imageBuffer) {
             console.log('No image buffer returned from PixelPoser');

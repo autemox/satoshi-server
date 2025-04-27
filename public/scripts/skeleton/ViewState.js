@@ -1,4 +1,7 @@
-// Modify ViewState.js
+/*
+maintains application state with properties like activeSkeletons, activeDirection, clipboardMode, and skeletonsByDirection that track selection and view settings
+*/
+
 export const ViewState = {
   offsetX: 480,
   offsetY: 480,

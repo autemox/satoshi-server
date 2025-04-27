@@ -1,3 +1,7 @@
+/* 
+handles file upload/download operations with functions like uploadJson(), downloadJson(), uploadImage(), and downloadImage() that interact with skeleton data
+*/
+
 import { ViewState } from './ViewState.js';
 import { showToast } from './utils.js';
 import { findSkeletonById } from './utils.js';

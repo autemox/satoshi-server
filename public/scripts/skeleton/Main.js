@@ -1,10 +1,16 @@
+/*
+initializes the client side js application 'skeleton tool' and provides core functionality like addSkeleton(), enablePanAndZoom(), and reflowRows() to manage the canvas display
+*/
+
 // @ts-check
+
 import { SkeletonRenderer } from './SkeletonRenderer.js';
-import { getSvg, showToast } from './utils.js';
+import { getSvg, showToast, debounce } from './utils.js';
 import { ViewState } from './ViewState.js';
 import { bindShortcuts } from './Bindings.js';
 import { generateImage } from './GenerationManager.js';
-import { saveLysleSheet, loadLysleSheet, exportSpriteSheet } from './LysleSheetManager.js';
+import { saveLysleSheet, loadLysleSheet, exportSpriteSheet, loadProjectFromStorage, newProject } from './LysleSheetManager.js';
+import { initSettings, Settings } from './Settings.js';
 
 console.log('Main.js loaded');
 
@@ -225,6 +231,7 @@ function updatePlusBox(direction) {
 }
 
 // Function to add direction labels
+// Modify the addDirectionLabels function in Main.js
 function addDirectionLabels() {
   const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   labelGroup.setAttribute('id', 'direction-labels');
@@ -245,7 +252,25 @@ function addDirectionLabels() {
     // Make the label clickable to set active direction
     label.style.cursor = 'pointer';
     label.addEventListener('click', () => {
-      ViewState.activeDirection = dir.toLowerCase();
+      // Set active direction
+      const direction = dir.toLowerCase();
+      ViewState.activeDirection = direction;
+      
+      // Clear current selections
+      ViewState.activeSkeletons.clear();
+      
+      // Select all skeletons in the clicked direction
+      let count = 0;
+      ViewState.skeletonsByDirection[direction].forEach(skeleton => {
+        count++;
+        if(count>2) ViewState.activeSkeletons.add(skeleton.id);
+      });
+      
+      // Update all skeletons to reflect the new selection state
+      Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
+        skeletonList.forEach(s => s.renderer.draw());
+      });
+      
       // Update visual indication of active direction
       updateDirectionLabels();
     });
@@ -273,7 +298,96 @@ export function updateDirectionLabels() {
     }
   });
 }
+
+function redrawAll() {
+  Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
+    skeletonList.forEach(s => s.renderer.draw());
+  });
+  addDirectionLabels();
+  updateDirectionLabels();
+}
+
+
+export async function clearCurrentProject() {
+  // If no project was loaded, continue with normal initialization...
+  const directions = ['north', 'east', 'south', 'west'];
+  const skeletonData = {};
   
+  // Clear existing skeletons
+  for (const dir of Object.keys(ViewState.skeletonsByDirection)) {
+    ViewState.skeletonsByDirection[dir].forEach(s => {
+      if (s.group?.parentNode) {
+        s.group.parentNode.removeChild(s.group);
+      }
+    });
+    ViewState.skeletonsByDirection[dir] = [];
+  }
+
+  // Also reset ViewState.skeletons (if you have a flat list)
+  if (ViewState.skeletons) {
+    ViewState.skeletons.length = 0;
+  }
+
+  // Load all skeleton JSON files
+  for (const direction of directions) {
+    try {
+      const res = await fetch(`/skeletons/default-${direction}.json`);
+      if (!res.ok) throw new Error(`Failed to load default-${direction}.json: ${res.status}`);
+      const data = await res.json();
+      skeletonData[direction] = data.pose_keypoints[0];
+      console.log(`Loaded default-${direction}.json successfully`);
+    } catch (error) {
+      console.error(`Error loading ${direction} skeleton:`, error);
+      // If failed to load a specific direction, fall back to west
+      if (!skeletonData.west) {
+        // Try to load west as a fallback
+        const fallbackRes = await fetch('/default-west.json');
+        const fallbackData = await fallbackRes.json();
+        skeletonData[direction] = fallbackData.pose_keypoints[0];
+      } else {
+        // Use west data as fallback if already loaded
+        skeletonData[direction] = skeletonData.west;
+      }
+      console.warn(`Using fallback skeleton for ${direction}`);
+    }
+  }
+  
+  if (!scene) throw new Error('Scene group not found');
+  
+  // Initialize all directions with their specific skeletons
+  directions.forEach(direction => {
+    // Create 3 skeletons for each direction (reference, optional reference, and frame 1)
+    for (let i = 1; i <= MIN_SKELETONS; i++) {
+      const keypoints = skeletonData[direction] || skeletonData.west; // Fallback to west if still missing
+      addSkeleton(`${direction}-skeleton${i}`, keypoints, direction);
+    }
+  });
+  
+  // Set initial active direction
+  ViewState.activeDirection = 'north';
+  
+  // Add direction labels
+  redrawAll();
+  document.addEventListener('directionChanged', (e) => {
+    updateDirectionLabels();
+  });
+  enablePanAndZoom(scene, svg);
+  disableTextSelection();
+}
+  
+function bindToolbarButtons() {
+  const newButton = document.querySelector('[data-button="new"]');
+  if (newButton) newButton.addEventListener('click', newProject);
+
+  const saveButton = document.querySelector('[data-button="save"]');
+  if (saveButton) saveButton.addEventListener('click', () => saveLysleSheet(false));
+
+  const exportButton = document.querySelector('[data-button="export"]');
+  if (exportButton) exportButton.addEventListener('click', exportSpriteSheet);
+
+  const loadButton = document.querySelector('[data-button="load"]');
+  if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
+}
 
   function disableTextSelection() {
     const style = document.createElement('style');
@@ -291,52 +405,47 @@ export function updateDirectionLabels() {
   
   if (!window.__MAIN_INITIALIZED__) {
     window.__MAIN_INITIALIZED__ = true;
-  
+    
     (async function () {
       try {
         console.warn('Initializing...');
+        initSettings();
 
-      const res = await fetch('/default-west.json');
-      const data = await res.json();
-      const keypoints = data.pose_keypoints[0];
-  
-      if (!scene) throw new Error('Scene group not found');
+        bindToolbarButtons();
 
-      console.log('Initializing load button listener.');
-      const saveButton = document.querySelector('[data-button="save"]');
-      if (saveButton) saveButton.addEventListener('click', saveLysleSheet);
-      const exportButton = document.querySelector('[data-button="export"]');
-      if (exportButton) exportButton.addEventListener('click', exportSpriteSheet);
-      const loadButton = document.querySelector('[data-button="load"]');
-      if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
-  
-      // Initialize all directions with reference skeletons
-      const directions = ['north', 'east', 'south', 'west'];
-      directions.forEach(direction => {
-        // Create 3 skeletons for each direction (reference, optional reference, and frame 1)
-        for (let i = 1; i <= MIN_SKELETONS; i++) {
-          addSkeleton(`${direction}-skeleton${i}`, keypoints, direction);
+        // Try to load project from localStorage first
+        const projectLoaded = await loadProjectFromStorage(
+          getActiveTool, 
+          selectedPoints, 
+          isDraggingPoint, 
+          dragTarget, 
+          getDirectionRowOffset
+        );
+        
+        // If project was loaded successfully, we're done with initialization
+        if (projectLoaded) {
+          console.log('Project loaded from storage, skipping default initialization');
+          
+          // Enable pan and zoom
+          enablePanAndZoom(scene, svg);
+          disableTextSelection();
+          
+          // Check if we should clear images based on settings
+          if (Settings.clearImagesOnRefresh) {
+            clearAllImages();
+          }
         }
-      });
-  
-      // Set initial active direction
-      ViewState.activeDirection = 'north';
-      
-      // Add direction labels
-      addDirectionLabels();
-      updateDirectionLabels();
-      document.addEventListener('directionChanged', (e) => {
-        updateDirectionLabels();
-      });
-  
-      enablePanAndZoom(scene, svg);
+        else 
+        {
+          // first time ever running the app or user cleared cookies
+          console.log('No project found in storage, initializing with default skeletons');
+          await clearCurrentProject();
+        }
 
-      // Call this function in your initialization
-      disableTextSelection();
-    } catch (err) {
-      console.error('Failed to load keypoints:', err);
-    }
-  })();
+      } catch (err) {
+        console.error('Failed to load keypoints:', err);
+      }
+    })();
   
 // only allow one active tool at at time
 document.querySelectorAll('.tool-button').forEach(btn => {
@@ -346,8 +455,10 @@ document.querySelectorAll('.tool-button').forEach(btn => {
     activeTool = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
     console.log(`Active tool set to ${activeTool}`);
     showToast(`Tool mode set to: ${activeTool}`, "gray");
+    redrawAll();
   });
 });
+
 document.querySelectorAll('.clipboard-mode-button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.clipboard-mode-button').forEach(b => b.classList.remove('active'));
@@ -358,14 +469,47 @@ document.querySelectorAll('.clipboard-mode-button').forEach(btn => {
   });
 });
 
-/**
+function clearAllImages() {
+  Object.values(ViewState.skeletonsByDirection).forEach(directionSkeletons => {
+    directionSkeletons.forEach(skeleton => {
+      if (skeleton.imageEl) {
+        skeleton.imageEl.setAttribute('href', 'data:,');
+        skeleton.imageEl.style.display = 'none';
+      }
+    });
+  });
+  console.log('[REFRESH] Cleared all images based on settings');
+}
+  }
+
+  export function resetCanvasZoomAndOffset() {
+
+    ViewState.offsetX = -50;
+    ViewState.offsetY = 150;
+    ViewState.scale = 2;
+    scene.setAttribute('transform', `translate(${ViewState.offsetX}, ${ViewState.offsetY}) scale(${ViewState.scale})`);
+    console.log('[RESET] Canvas zoom and offset reset');
+
+    // redraw everything
+    Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
+      skeletonList.forEach(s => s.renderer.draw());
+    });
+    updateDirectionLabels();
+    updateAllPlusBoxes();
+    
+  }
+
+  
+  /**
  * Enables pan and zoom interaction
  * @param {SVGGElement} scene
  * @param {SVGSVGElement} svg
  */
-function enablePanAndZoom(scene, svg) {
-  let isPanning = false; // is the user dragging/panning?
+export function enablePanAndZoom(scene, svg) {
+
+  let isPanning = false;
   let lastX = 0, lastY = 0;
+  let redrawTimeout = null;
 
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -385,7 +529,7 @@ function enablePanAndZoom(scene, svg) {
     const zoom = e.deltaY < 0 ? 1.02 : 0.98;
     ViewState.scale *= zoom;
 
-    // dont allow scale to be too small or too large
+    // Don't allow scale to be too small or too large
     if (ViewState.scale < 0.5) ViewState.scale = 0.5;
     if (ViewState.scale > 25) ViewState.scale = 25;
   
@@ -394,6 +538,15 @@ function enablePanAndZoom(scene, svg) {
     ViewState.offsetY = svgY - worldY * ViewState.scale;
   
     updateTransform();
+    
+    // Debounce the redraw of all skeletons to avoid performance issues
+    clearTimeout(redrawTimeout);
+    redrawTimeout = setTimeout(() => {
+      console.log("[ZOOM] Redrawing skeletons after zoom change");
+      Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
+        skeletonList.forEach(s => s.renderer.draw());
+      });
+    }, 250); // Wait 500ms after last zoom event
   });
 
   svg.addEventListener('mouseup', (e) => {
@@ -593,5 +746,5 @@ function enablePanAndZoom(scene, svg) {
   }
 
   updateTransform(); // initialize
+  resetCanvasZoomAndOffset();
 }
-  }

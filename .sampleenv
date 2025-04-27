@@ -10,7 +10,8 @@ URL_DOMAIN="localhost:3016"     # in production: 'lysle.net'  in development: 'l
 URL_PATH=""                     # in production: '/satoshi'  in development: ''
 
 #pixel lab character pose generations using skeleton system
-PIXEL_LAB_API_KEY=
+PIXEL_LAB_API_KEY=              # set in production (dont use this variable for public pages)
+PIXEL_LAB_API_KEY_DEVELOPMENT=  # only set in development
 
 #password for accessing the generation tool via webpage
 ADMIN_PASSWORD=

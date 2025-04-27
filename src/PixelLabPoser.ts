@@ -27,13 +27,9 @@ type SkeletonData = {
 
 export class PixelPoser {
   private readonly apiUrl = 'https://api.pixellab.ai/v1/animate-with-skeleton';
-  private readonly apiKey = process.env.PIXEL_LAB_API_KEY ?? '';
   private readonly imageSize = { width: 64, height: 64 };
 
   constructor() {
-    if (!this.apiKey) {
-      throw new Error('❌ PIXEL_LAB_API_KEY not found in .env');
-    }
   }
 
     // takes a pose string and direction and finds relavent json files from pose
@@ -63,7 +59,7 @@ export class PixelPoser {
     }
 
     // New method - takes 2 skeletons + 1 reference image
-  async generatePoseWithSkeletons(base64Image: string, referenceSkeleton: Keypoint[], skeletonToGenerateFrom: Keypoint[], direction: string, poseForSaveFile?: string): Promise<Buffer|null> {
+  async generatePoseWithSkeletons(base64Image: string, referenceSkeleton: Keypoint[], skeletonToGenerateFrom: Keypoint[], direction: string, poseForSaveFile?: string, apiKey?: string): Promise<Buffer|null> {
     
     console.log(`🦴 Generating pose with provided skeletons, direction: "${direction}"`);
     console.log(`🦴 base64Image details: ${base64Image}`);
@@ -81,7 +77,8 @@ export class PixelPoser {
       referenceSkeleton,    // Duplicate
       skeletonToGenerateFrom,       // Target skeleton to generate an image from this skeleton
       direction,
-      poseForSaveFile
+      poseForSaveFile,
+      apiKey
     );
   }
 
@@ -99,7 +96,8 @@ export class PixelPoser {
     skeleton2: Keypoint[],
     skeletonToGenerateFrom: Keypoint[],
     direction: string,
-    poseForSaveFile?: string
+    poseForSaveFile?: string,
+    apiKey?: string
   ): Promise<Buffer|null> {
     console.log(`🦴 Generating pose with multiple skeletons, direction: "${direction}"`);
     
@@ -114,7 +112,8 @@ export class PixelPoser {
         skeleton2,
         skeletonToGenerateFrom,
         direction,
-        poseForSaveFile
+        poseForSaveFile,
+        apiKey
       );
       
       if (result) return result; // Success!
@@ -135,7 +134,8 @@ export class PixelPoser {
     skeleton2: Keypoint[],
     skeletonToGenerateFrom: Keypoint[],
     direction: string,
-    poseForSaveFile?: string
+    poseForSaveFile?: string,
+    apiKey?: string
   ): Promise<Buffer|null> {
 
     // convert date url images to base64 string only images
@@ -189,10 +189,13 @@ export class PixelPoser {
     
     try {
 
+      // Check if API key is provided
+      if(!apiKey || apiKey === '' || apiKey.length<5) apiKey = process.env.PIXEL_LAB_API_KEY_DEVELOPMENT; // PIXEL_LAB_API_KEY_DEVELOPMENT is purposely not set on the aws server, since other people can use the lysle.net/skeleton app
+
       // Api Request
       const res = await axios.post(this.apiUrl, payload, {
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
         timeout: 600000 // 10 minutes

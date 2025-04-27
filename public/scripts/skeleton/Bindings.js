@@ -1,4 +1,9 @@
-// Bindings.js
+/*
+implements clipboard functionality with handleImageToClipboard(), handleImageFromClipboard(), handleSkeletonToClipboard(), and handleSkeletonFromClipboard() functions
+*/
+
+// @ts-check
+
 import { ViewState } from './ViewState.js';
 import { showToast, findSkeletonById } from './utils.js';
 
@@ -46,6 +51,7 @@ export function handleImageToClipboard() {
 
   canvas.toBlob(blob => {
     try {
+      if (!blob) console.error('[COPY] Blob is not set');
       const item = new ClipboardItem({ 'image/png': blob });
       navigator.clipboard.write([item])
         .then(() => {

@@ -1,3 +1,7 @@
+/* 
+contains utility functions including getSvg(), showToast(), and findSkeletonById() for common operations across the application.
+*/
+
 // @ts-check
  
 /**
@@ -14,7 +18,20 @@ export function getSvg(id) {
   }
 
 
-export function showToast(message, color = 'green') {
+export function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      const context = this;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        func.apply(context, args);
+      }, wait);
+    };
+  }
+
+  
+// toast with color and duration
+export function showToast(message, color = 'green', duration = 2000) {
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.position = 'fixed';
@@ -30,6 +47,7 @@ export function showToast(message, color = 'green') {
   toast.style.zIndex = 9999;
   toast.style.opacity = '0';
   toast.style.transition = 'opacity 0.3s ease';
+  toast.style.maxWidth = '300px'; // Ensure it doesn't get too wide
 
   document.body.appendChild(toast);
 
@@ -41,9 +59,11 @@ export function showToast(message, color = 'green') {
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => {
-      document.body.removeChild(toast);
+      if (toast.parentNode) {
+        document.body.removeChild(toast);
+      }
     }, 300);
-  }, 2000); // Show for 2 seconds
+  }, duration); // Use the provided duration
 }
 
 

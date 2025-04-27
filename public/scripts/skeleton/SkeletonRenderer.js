@@ -1,3 +1,7 @@
+/*
+visualizes and manipulates skeleton data with methods like draw(), addGeneration(), and mouseDownOnPivot() for rendering and interaction
+*/
+
 const bones = [
   // Face
   ['LEFT EAR', 'LEFT EYE'],
@@ -125,119 +129,14 @@ export class SkeletonRenderer {
       map[kp.label] = kp;
     }
 
-    // background of box (click area)
-    const bgHitbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bgHitbox.setAttribute('x', '0');
-    bgHitbox.setAttribute('y', '0');
-    bgHitbox.setAttribute('width', '64');
-    bgHitbox.setAttribute('height', '64');
-    bgHitbox.setAttribute('fill', 'rgba(80, 202, 255, 0.02)');
-    bgHitbox.style.cursor = 'pointer';
-    // In SkeletonRenderer class
-    bgHitbox.addEventListener('mousedown', (e) => {
-      console.log(`(click) Background on skeleton ${this.id}`);
-      
-      // Set active direction based on this skeleton's direction
-      const previousDirection = ViewState.activeDirection;
-      if (previousDirection !== this.direction)  
-      {
-          this.changeDirection(this.direction);
-      }
+    this.drawBgHitBox();
 
-      // Handle frame selection with modifier keys
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        // Toggle selection for this skeleton
-        if (ViewState.activeSkeletons.has(this.id)) {
-          ViewState.activeSkeletons.delete(this.id);
-          console.log(`Removed skeleton ${this.id} from selection`);
-        } else {
-          ViewState.activeSkeletons.add(this.id);
-          console.log(`Added skeleton ${this.id} to selection`);
-        }
-      } else {
-        // If no modifier key, select only this skeleton
-        ViewState.activeSkeletons.clear();
-        ViewState.activeSkeletons.add(this.id);
-        console.log(`Selected only skeleton ${this.id}`);
-      }
-      
-      // Dispatch an event if direction changed
-      if (previousDirection !== this.direction) {
-        const changeEvent = new CustomEvent('directionChanged', {
-          detail: { direction: this.direction }
-        });
-        document.dispatchEvent(changeEvent);
-      }
-      
-      // If point tool is active and no modifier key, clear point selections
-      if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
-        this.selectedPoints.clear();
-      }
-      
-      // Redraw all skeletons in all directions
-      ViewState.skeletons.forEach(s => s.renderer.draw()); // THIS DOESNT WORK //??
-
-      e.stopPropagation();
-    });
-    this.layer.appendChild(bgHitbox);
-
-    // bones
-    for (const [aLabel, bLabel] of bones) {
-      const a = map[aLabel];
-      const b = map[bLabel];
-      if (!a || !b) continue;
-
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', (a.x * 64).toString());
-      line.setAttribute('y1', (a.y * 64).toString());
-      line.setAttribute('x2', (b.x * 64).toString());
-      line.setAttribute('y2', (b.y * 64).toString());
-      line.setAttribute('stroke', getColorForLabel(a.label));
-      line.setAttribute('stroke-width', '.33');
-      this.layer.appendChild(line);
-    }
-
-    // keypoints
-    for (const kp of this.keypoints) {
-      const key = `${this.id}::${kp.label}`;
-      const isSelected = this.selectedPoints.has(key);
-
-      const cx = kp.x * 64;
-      const cy = kp.y * 64;
-      const color = getColorForLabel(kp.label);
-
-      const pivotArea = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      pivotArea.setAttribute('cx', cx.toString());
-      pivotArea.setAttribute('cy', cy.toString());
-      pivotArea.setAttribute('fill', 'rgba(0, 0, 0, 0)');
-      pivotArea.setAttribute('r', '1.5');
-      pivotArea.style.cursor = 'pointer';
-
-      const pivot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      pivot.setAttribute('cx', cx.toString());
-      pivot.setAttribute('cy', cy.toString());
-      pivot.setAttribute('r', isSelected ? '0.9' : '0.6');
-      pivot.setAttribute('fill', color);
-      pivot.style.cursor = 'pointer';
-
-      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dot.setAttribute('cx', cx.toString());
-      dot.setAttribute('cy', cy.toString());
-      dot.setAttribute('r', '0.3');
-      dot.setAttribute('fill', 'white');
-      dot.style.cursor = 'pointer';
-
-      const handleMouseDownOnPivot = (e) => {
-        // this never fires
-        this.mouseDownOnPivot(e, kp, key, isSelected);
-      }
-      pivotArea.addEventListener('mousedown', handleMouseDownOnPivot);
-      pivot.addEventListener('mousedown', handleMouseDownOnPivot);
-      dot.addEventListener('mousedown', handleMouseDownOnPivot);
-
-      this.layer.appendChild(pivotArea);
-      this.layer.appendChild(pivot);
-      this.layer.appendChild(dot);
+    
+    // Only draw bones and pivots if NOT in pencil mode
+    if (this.getActiveTool() !== 'pencil') 
+    {
+      this.drawBones();
+      this.drawPivots();
     }
 
     // box
@@ -342,6 +241,157 @@ export class SkeletonRenderer {
         this.layer.appendChild(reject);
       }
     });
+  }
+
+  drawBgHitBox() {
+    // background of box (click area)
+    const bgHitbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bgHitbox.setAttribute('x', '0');
+    bgHitbox.setAttribute('y', '0');
+    bgHitbox.setAttribute('width', '64');
+    bgHitbox.setAttribute('height', '64');
+    bgHitbox.setAttribute('fill', 'rgba(80, 202, 255, 0.02)');
+    bgHitbox.style.cursor = 'pointer';
+    // In SkeletonRenderer class
+    bgHitbox.addEventListener('mousedown', (e) => {
+      console.log(`(click) Background on skeleton ${this.id}`);
+      
+      // first and foremost, check if we are selecting references
+      const isSelectingReferences = window.isSelectingReferences;
+      console.log(`isSelectingReferences: ${isSelectingReferences}`);
+      if (isSelectingReferences) {
+        // Import the reference selection handler to avoid circular dependencies
+        console.log(`(click) Reference skeleton ${this.id}`);
+        import('./GenerationManager.js').then(module => {
+          module.handleReferenceSkeletonSelection(this.id);
+        });
+        e.stopPropagation();
+        return;
+      }
+
+      // Set active direction based on this skeleton's direction
+      const previousDirection = ViewState.activeDirection;
+      if (previousDirection !== this.direction)  
+      {
+          this.changeDirection(this.direction);
+      }
+
+      // Handle frame selection with modifier keys
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        // Toggle selection for this skeleton
+        if (ViewState.activeSkeletons.has(this.id)) {
+          ViewState.activeSkeletons.delete(this.id);
+          console.log(`Removed skeleton ${this.id} from selection`);
+        } else {
+          ViewState.activeSkeletons.add(this.id);
+          console.log(`Added skeleton ${this.id} to selection`);
+        }
+      } else {
+        // If no modifier key, select only this skeleton
+        ViewState.activeSkeletons.clear();
+        ViewState.activeSkeletons.add(this.id);
+        console.log(`Selected only skeleton ${this.id}`);
+      }
+      
+      // Dispatch an event if direction changed
+      if (previousDirection !== this.direction) {
+        const changeEvent = new CustomEvent('directionChanged', {
+          detail: { direction: this.direction }
+        });
+        document.dispatchEvent(changeEvent);
+      }
+      
+      // If point tool is active and no modifier key, clear point selections
+      if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
+        this.selectedPoints.clear();
+      }
+      
+      // Redraw all skeletons in all directions
+      ViewState.skeletons.forEach(s => s.renderer.draw()); // THIS DOESNT WORK //??
+
+      e.stopPropagation();
+    });
+    this.layer.appendChild(bgHitbox);
+  }
+
+
+  drawBones() {
+    
+    const map = {};
+    for (const kp of this.keypoints) {
+      map[kp.label] = kp;
+    }
+  
+    // bones
+    for (const [aLabel, bLabel] of bones) {
+      const a = map[aLabel];
+      const b = map[bLabel];
+      if (!a || !b) continue;
+  
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', (a.x * 64).toString());
+      line.setAttribute('y1', (a.y * 64).toString());
+      line.setAttribute('x2', (b.x * 64).toString());
+      line.setAttribute('y2', (b.y * 64).toString());
+      line.setAttribute('stroke', getColorForLabel(a.label));
+      line.setAttribute('stroke-width', '.5');
+      line.setAttribute('vector-effect', 'non-scaling-stroke'); // This makes the stroke width constant regardless of zoom
+      this.layer.appendChild(line);
+    }
+  }
+  
+  drawPivots() {
+
+    // keypoints
+    for (const kp of this.keypoints) {
+      const key = `${this.id}::${kp.label}`;
+      const isSelected = this.selectedPoints.has(key);
+  
+      const cx = kp.x * 64;
+      const cy = kp.y * 64;
+      const color = getColorForLabel(kp.label);
+  
+      const pivotArea = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      pivotArea.setAttribute('cx', cx.toString());
+      pivotArea.setAttribute('cy', cy.toString());
+      pivotArea.setAttribute('fill', 'rgba(0, 0, 0, 0)');
+      pivotArea.setAttribute('r', '3');
+      // Add this to make size stay constant regardless of zoom
+      pivotArea.setAttribute('transform', `scale(${7/(9+ViewState.scale)})`);
+      pivotArea.setAttribute('transform-origin', `${cx} ${cy}`);
+      pivotArea.style.cursor = 'pointer';
+  
+      const pivot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      pivot.setAttribute('cx', cx.toString());
+      pivot.setAttribute('cy', cy.toString());
+      pivot.setAttribute('r', isSelected ? '2' : '1.5');
+      pivot.setAttribute('fill', color);
+      // Add this to make size stay constant regardless of zoom
+      pivot.setAttribute('transform', `scale(${7/(9+ViewState.scale)})`);
+      pivot.setAttribute('transform-origin', `${cx} ${cy}`);
+      pivot.style.cursor = 'pointer';
+  
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', cx.toString());
+      dot.setAttribute('cy', cy.toString());
+      dot.setAttribute('r', '0.5');
+      dot.setAttribute('fill', 'white');
+      // Add this to make size stay constant regardless of zoom
+      dot.setAttribute('transform', `scale(${7/(9+ViewState.scale)})`);
+      dot.setAttribute('transform-origin', `${cx} ${cy}`);
+      dot.style.cursor = 'pointer';
+  
+      const handleMouseDownOnPivot = (e) => {
+        this.mouseDownOnPivot(e, kp, key, isSelected);
+      }
+      pivotArea.addEventListener('mousedown', handleMouseDownOnPivot);
+      pivot.addEventListener('mousedown', handleMouseDownOnPivot);
+      dot.addEventListener('mousedown', handleMouseDownOnPivot);
+  
+      this.layer.appendChild(pivotArea);
+      this.layer.appendChild(pivot);
+      this.layer.appendChild(dot);
+    }
   }
 
   /**
