@@ -149,7 +149,7 @@ function addSkeleton(id, keypoints, direction) {
   
   // Calculate position based on direction and number of skeletons in that direction
   const directionSkeletons = ViewState.skeletonsByDirection[direction];
-  const offsetX = directionSkeletons.length * 70;
+  const offsetX = directionSkeletons.length * 70 + (directionSkeletons.length > 1 ? 15 : 0);
   const offsetY = getDirectionRowOffset(direction);
   group.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
   
@@ -217,9 +217,9 @@ function addSkeleton(id, keypoints, direction) {
     const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     plus.textContent = '+';
     plus.setAttribute('x', (x + 32).toString());
-    plus.setAttribute('y', (y + 38).toString());
+    plus.setAttribute('y', (y + 40).toString());
     plus.setAttribute('fill', 'white');
-    plus.setAttribute('font-size', '32');
+    plus.setAttribute('font-size', '24');
     plus.setAttribute('text-anchor', 'middle');
     plus.setAttribute('pointer-events', 'none');
   
@@ -228,31 +228,39 @@ function addSkeleton(id, keypoints, direction) {
     scene.appendChild(group);
   
     rect.addEventListener('mousedown', () => {
-      console.log(`(click) Adding new skeleton to ${direction}`);
-      ViewState.activeDirection = direction; // Set active direction when adding
-      const dirSkeletons = ViewState.skeletonsByDirection[direction];
+      console.log(`(click) Adding new skeleton to all directions`);
       
-      // Use the first skeleton of this direction as template, or the first skeleton of any direction if empty
-      let templateSkeleton;
-      if (dirSkeletons.length > 0) {
-        templateSkeleton = dirSkeletons[0].renderer.keypoints;
-      } else {
-        // Find first available skeleton from any direction
-        for (const dir of ['north', 'east', 'south', 'west']) {
-          if (ViewState.skeletonsByDirection[dir].length > 0) {
-            templateSkeleton = ViewState.skeletonsByDirection[dir][0].renderer.keypoints;
-            break;
+      // First, set the active direction (still useful for UI feedback)
+      ViewState.activeDirection = direction;
+      
+      // Process each direction
+      ['north', 'east', 'south', 'west'].forEach(dir => {
+        const dirSkeletons = ViewState.skeletonsByDirection[dir];
+        
+        // Find a template skeleton for this direction
+        let templateSkeleton;
+        if (dirSkeletons.length > 0) {
+          // Use first skeleton of this direction as template
+          templateSkeleton = dirSkeletons[0].renderer.keypoints;
+        } else {
+          // Find first available skeleton from any direction
+          for (const anyDir of ['north', 'east', 'south', 'west']) {
+            if (ViewState.skeletonsByDirection[anyDir].length > 0) {
+              templateSkeleton = ViewState.skeletonsByDirection[anyDir][0].renderer.keypoints;
+              break;
+            }
           }
         }
-      }
-      
-      if (templateSkeleton) {
-        const keypointsCopy = JSON.parse(JSON.stringify(templateSkeleton));
-        const newId = `${direction}-skeleton${dirSkeletons.length + 1}`;
-        addSkeleton(newId, keypointsCopy, direction);
-      } else {
-        console.error('No template skeleton found');
-      }
+        
+        if (templateSkeleton) {
+          const keypointsCopy = JSON.parse(JSON.stringify(templateSkeleton));
+          const newId = `${dir}-skeleton${dirSkeletons.length + 1}`;
+          addSkeleton(newId, keypointsCopy, dir);
+          console.log(`Added new skeleton to ${dir}: ${newId}`);
+        } else {
+          console.error(`No template skeleton found for ${dir}`);
+        }
+      });
     });
   }
 

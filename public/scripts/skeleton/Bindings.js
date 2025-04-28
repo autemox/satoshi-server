@@ -106,19 +106,36 @@ export async function handleImageFromClipboard() {
         });
 
         ViewState.activeSkeletons.forEach(skeletonId => {
+          // Debug: Log what we're trying to paste to
+          console.log(`[DEBUG] Pasting to skeleton: ${skeletonId}`);
+          
           const skeleton = findSkeletonById(skeletonId);
-          if (!skeleton || !skeleton.imageEl) {
-            console.warn(`[PASTE] Skeleton or imageEl not found for ${skeletonId}`);
+          if (!skeleton) {
+            console.warn(`[PASTE] Skeleton not found for ${skeletonId}`);
             return;
           }
-          skeleton.imageEl.setAttribute('href', dataUrl);
-          skeleton.imageEl.style.display = '';
-          const parent = skeleton.imageEl.parentNode;
-          if (parent) {
-            parent.removeChild(skeleton.imageEl);
-            parent.insertBefore(skeleton.imageEl, parent.firstChild);
+          
+          // Debug: Log what we found
+          console.log(`[DEBUG] Found skeleton:`, skeleton);
+          console.log(`[DEBUG] Image element:`, skeleton.imageEl);
+          console.log(`[DEBUG] Group structure:`, skeleton.group);
+          
+          if (!skeleton.imageEl) {
+            console.warn(`[PASTE] ImageEl not found for ${skeletonId}`);
+            return;
           }
-          console.log(`[PASTE] Pasted image into skeleton ${skeletonId}`);
+          
+          // Let's use a very simple approach: just set the href attribute
+          skeleton.imageEl.setAttribute('href', dataUrl);
+          skeleton.imageEl.style.display = ''; // Make sure it's visible
+          
+          // Debug: Confirm what we did
+          console.log(`[DEBUG] Set image href to dataUrl length: ${dataUrl.length}`);
+          console.log(`[DEBUG] Current image href length: ${skeleton.imageEl.getAttribute('href').length}`);
+          
+          // Force a redraw
+          skeleton.renderer.draw();
+          
           showToast('Image pasted to frame');
         });
 
@@ -128,6 +145,7 @@ export async function handleImageFromClipboard() {
     console.warn('[PASTE] No image found in clipboard');
   } catch (err) {
     console.error('[PASTE] Clipboard read failed:', err);
+    alert(`Clipboard error: ${err.message}`);
   }
 }
 
