@@ -371,7 +371,8 @@ export async function clearCurrentProject() {
   // Load all skeleton JSON files
   for (const direction of directions) {
     try {
-      const res = await fetch(`/skeletons/default-${direction}.json`);
+      const skeletonUrl = `${urlPath}/skeletons/default-${direction}.json`;
+      const res = await fetch(skeletonUrl);
       if (!res.ok) throw new Error(`Failed to load default-${direction}.json: ${res.status}`);
       const data = await res.json();
       skeletonData[direction] = data.pose_keypoints[0];
