@@ -81,7 +81,7 @@ export function reflowRows() {
     const skeletons = ViewState.skeletonsByDirection[direction] || [];
 
     skeletons.forEach((skeleton, i) => {
-      const x = i * 70;
+      const x = i * 70 + (i > 1 ? 15 : 0); // 30px extra space after second skeleton
       skeleton.group.setAttribute('transform', `translate(${x}, ${y})`);
     });
 
@@ -93,35 +93,46 @@ export function reflowRows() {
   });
 
   updateAllPlusBoxes();
-  repositionDirectionLabels(); // <<< 🔥 call it here
+  repositionDirectionLabels();
   updateDirectionLabels(); 
 }
 
 function repositionDirectionLabels() {
   const labelGroup = svg.getElementById('direction-labels');
-  if (!labelGroup) return;
+  if (!labelGroup) {
+    // If labels don't exist yet, create them
+    addDirectionLabels();
+    return;
+  }
 
   const directions = ['north', 'east', 'south', 'west'];
   directions.forEach((dir, index) => {
+    if (index >= labelGroup.children.length) return;
+    
     const label = labelGroup.children[index];
-    if (!label) return;
-
-    const y = getDirectionRowOffset(dir) + 32; // consistent with addDirectionLabels
+    const y = getDirectionRowOffset(dir) + 32;
     label.setAttribute('y', y.toString());
   });
 }
 
 // --- Add skeleton ---
-// Modified addSkeleton function
 function addSkeleton(id, keypoints, direction) {
+  // Create the main group that will contain all skeleton elements
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('id', id);
   scene.appendChild(group);
-
-  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  group.appendChild(layer);
-
-  // Create and insert the image element BEFORE the renderer draws on top
+  
+  // 1. Background layer (lowest)
+  const bgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  bgLayer.setAttribute('class', 'bg-layer');
+  group.appendChild(bgLayer);
+  
+  // 2. Image layer (middle)
+  const imageLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  imageLayer.setAttribute('class', 'image-layer');
+  group.appendChild(imageLayer);
+  
+  // Create and insert the image element
   const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
   imageEl.setAttribute('x', '0');
   imageEl.setAttribute('y', '0');
@@ -129,17 +140,23 @@ function addSkeleton(id, keypoints, direction) {
   imageEl.setAttribute('height', '64');
   imageEl.setAttribute('href', ''); // empty initially
   imageEl.setAttribute('pointer-events', 'none');
-  group.appendChild(imageEl); // must be below bones/joints
-
+  imageLayer.appendChild(imageEl);
+  
+  // 3. Skeleton layer (top)
+  const skeletonLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  skeletonLayer.setAttribute('class', 'skeleton-layer');
+  group.appendChild(skeletonLayer);
+  
   // Calculate position based on direction and number of skeletons in that direction
   const directionSkeletons = ViewState.skeletonsByDirection[direction];
   const offsetX = directionSkeletons.length * 70;
   const offsetY = getDirectionRowOffset(direction);
   group.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
-
+  
+  // Create the renderer that will draw the skeleton (bones and joints)
   const renderer = new SkeletonRenderer(
     id,
-    layer,
+    skeletonLayer, // Now using the skeleton layer specifically
     JSON.parse(JSON.stringify(keypoints)), // deep copy
     () => activeTool,
     selectedPoints,
@@ -147,78 +164,97 @@ function addSkeleton(id, keypoints, direction) {
     dragTarget,
     direction,
   );
-
-  // Store imageEl too
-  const skeletonObj = { id, group, renderer, imageEl, direction };
+  
+  // Store all necessary references
+  const skeletonObj = { 
+    id, 
+    group, 
+    renderer, 
+    imageEl, // Still storing the image element reference
+    direction 
+  };
   ViewState.skeletonsByDirection[direction].push(skeletonObj);
   renderer.draw();
-
+  
   updatePlusBox(direction);
 }
   
   // --- Add the plus (+) box ---
-  // Modified addPlusBox function
-function addPlusBox(direction) {
-  let plusBoxId = `plus-box-${direction}`;
-  let plusBox = svg.getElementById(plusBoxId);
-  if (plusBox) plusBox.remove();
-
-  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  group.setAttribute('id', plusBoxId);
+  function addPlusBox(direction) {
+    let plusBoxId = `plus-box-${direction}`;
+    let plusBox = svg.getElementById(plusBoxId);
+    if (plusBox) plusBox.remove();
   
-  const directionSkeletons = ViewState.skeletonsByDirection[direction];
-  const x = directionSkeletons.length * 70;
-  const y = getDirectionRowOffset(direction);
-
-  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  rect.setAttribute('x', x.toString());
-  rect.setAttribute('y', y.toString());
-  rect.setAttribute('width', '64');
-  rect.setAttribute('height', '64');
-  rect.setAttribute('stroke', 'white');
-  rect.setAttribute('fill', '#222');
-
-  const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  plus.textContent = '+';
-  plus.setAttribute('x', (x + 32).toString());
-  plus.setAttribute('y', (y + 38).toString());
-  plus.setAttribute('fill', 'white');
-  plus.setAttribute('font-size', '32');
-  plus.setAttribute('text-anchor', 'middle');
-  plus.setAttribute('pointer-events', 'none');
-
-  group.appendChild(rect);
-  group.appendChild(plus);
-  scene.appendChild(group);
-
-  rect.addEventListener('mousedown', () => {
-    console.log(`(click) Adding new skeleton to ${direction}`);
-    ViewState.activeDirection = direction; // Set active direction when adding
-    const dirSkeletons = ViewState.skeletonsByDirection[direction];
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('id', plusBoxId);
     
-    // Use the first skeleton of this direction as template, or the first skeleton of any direction if empty
-    let templateSkeleton;
-    if (dirSkeletons.length > 0) {
-      templateSkeleton = dirSkeletons[0].renderer.keypoints;
-    } else {
-      // Find first available skeleton from any direction
-      for (const dir of ['north', 'east', 'south', 'west']) {
-        if (ViewState.skeletonsByDirection[dir].length > 0) {
-          templateSkeleton = ViewState.skeletonsByDirection[dir][0].renderer.keypoints;
-          break;
-        }
+    const directionSkeletons = ViewState.skeletonsByDirection[direction];
+    // Calculate position with the extra gap
+    let x = 0;
+    if (directionSkeletons.length > 0) {
+      // Get the last skeleton's position
+      const lastSkeleton = directionSkeletons[directionSkeletons.length - 1];
+      const transform = lastSkeleton.group.getAttribute('transform');
+      const match = transform.match(/translate\(([^,]+),/);
+      if (match) {
+        x = parseFloat(match[1]) + 70; // Add skeleton width (64) plus spacing
+      } else {
+        // Fallback calculation with gap
+        x = directionSkeletons.length * 70 + (directionSkeletons.length > 1 ? 30 : 0);
       }
     }
     
-    if (templateSkeleton) {
-      const keypointsCopy = JSON.parse(JSON.stringify(templateSkeleton));
-      const newId = `${direction}-skeleton${dirSkeletons.length + 1}`;
-      addSkeleton(newId, keypointsCopy, direction);
-    } else {
-      console.error('No template skeleton found');
-    }
-  });
-}
+    const y = getDirectionRowOffset(direction);
+  
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x.toString());
+    rect.setAttribute('y', y.toString());
+    rect.setAttribute('width', '64');
+    rect.setAttribute('height', '64');
+    rect.setAttribute('stroke', 'white');
+    rect.setAttribute('fill', '#222');
+  
+    const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    plus.textContent = '+';
+    plus.setAttribute('x', (x + 32).toString());
+    plus.setAttribute('y', (y + 38).toString());
+    plus.setAttribute('fill', 'white');
+    plus.setAttribute('font-size', '32');
+    plus.setAttribute('text-anchor', 'middle');
+    plus.setAttribute('pointer-events', 'none');
+  
+    group.appendChild(rect);
+    group.appendChild(plus);
+    scene.appendChild(group);
+  
+    rect.addEventListener('mousedown', () => {
+      console.log(`(click) Adding new skeleton to ${direction}`);
+      ViewState.activeDirection = direction; // Set active direction when adding
+      const dirSkeletons = ViewState.skeletonsByDirection[direction];
+      
+      // Use the first skeleton of this direction as template, or the first skeleton of any direction if empty
+      let templateSkeleton;
+      if (dirSkeletons.length > 0) {
+        templateSkeleton = dirSkeletons[0].renderer.keypoints;
+      } else {
+        // Find first available skeleton from any direction
+        for (const dir of ['north', 'east', 'south', 'west']) {
+          if (ViewState.skeletonsByDirection[dir].length > 0) {
+            templateSkeleton = ViewState.skeletonsByDirection[dir][0].renderer.keypoints;
+            break;
+          }
+        }
+      }
+      
+      if (templateSkeleton) {
+        const keypointsCopy = JSON.parse(JSON.stringify(templateSkeleton));
+        const newId = `${direction}-skeleton${dirSkeletons.length + 1}`;
+        addSkeleton(newId, keypointsCopy, direction);
+      } else {
+        console.error('No template skeleton found');
+      }
+    });
+  }
 
 export function updateAllPlusBoxes() {
   ['north', 'east', 'south', 'west'].forEach(dir => {
@@ -231,8 +267,12 @@ function updatePlusBox(direction) {
 }
 
 // Function to add direction labels
-// Modify the addDirectionLabels function in Main.js
 function addDirectionLabels() {
+
+  // Check if labels already exist and remove them if they do
+  const existingLabels = svg.getElementById('direction-labels');
+  if (existingLabels) existingLabels.remove();
+  
   const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   labelGroup.setAttribute('id', 'direction-labels');
   
@@ -279,6 +319,7 @@ function addDirectionLabels() {
   });
   
   scene.appendChild(labelGroup);
+  updateDirectionLabels(); // Make sure to update the labels after adding them
 }
 
 // Function to update the visual state of direction labels
@@ -304,7 +345,6 @@ function redrawAll() {
     skeletonList.forEach(s => s.renderer.draw());
   });
   addDirectionLabels();
-  updateDirectionLabels();
 }
 
 

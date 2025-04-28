@@ -242,77 +242,139 @@ export class SkeletonRenderer {
       }
     });
   }
-
-  drawBgHitBox() {
-    // background of box (click area)
-    const bgHitbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bgHitbox.setAttribute('x', '0');
-    bgHitbox.setAttribute('y', '0');
-    bgHitbox.setAttribute('width', '64');
-    bgHitbox.setAttribute('height', '64');
-    bgHitbox.setAttribute('fill', 'rgba(80, 202, 255, 0.02)');
-    bgHitbox.style.cursor = 'pointer';
-    // In SkeletonRenderer class
-    bgHitbox.addEventListener('mousedown', (e) => {
-      console.log(`(click) Background on skeleton ${this.id}`);
-      
-      // first and foremost, check if we are selecting references
-      const isSelectingReferences = window.isSelectingReferences;
-      console.log(`isSelectingReferences: ${isSelectingReferences}`);
-      if (isSelectingReferences) {
-        // Import the reference selection handler to avoid circular dependencies
-        console.log(`(click) Reference skeleton ${this.id}`);
-        import('./GenerationManager.js').then(module => {
-          module.handleReferenceSkeletonSelection(this.id);
-        });
-        e.stopPropagation();
-        return;
-      }
-
-      // Set active direction based on this skeleton's direction
-      const previousDirection = ViewState.activeDirection;
-      if (previousDirection !== this.direction)  
-      {
-          this.changeDirection(this.direction);
-      }
-
-      // Handle frame selection with modifier keys
-      if (e.shiftKey || e.ctrlKey || e.metaKey) {
-        // Toggle selection for this skeleton
-        if (ViewState.activeSkeletons.has(this.id)) {
-          ViewState.activeSkeletons.delete(this.id);
-          console.log(`Removed skeleton ${this.id} from selection`);
-        } else {
-          ViewState.activeSkeletons.add(this.id);
-          console.log(`Added skeleton ${this.id} to selection`);
-        }
-      } else {
-        // If no modifier key, select only this skeleton
-        ViewState.activeSkeletons.clear();
-        ViewState.activeSkeletons.add(this.id);
-        console.log(`Selected only skeleton ${this.id}`);
-      }
-      
-      // Dispatch an event if direction changed
-      if (previousDirection !== this.direction) {
-        const changeEvent = new CustomEvent('directionChanged', {
-          detail: { direction: this.direction }
-        });
-        document.dispatchEvent(changeEvent);
-      }
-      
-      // If point tool is active and no modifier key, clear point selections
-      if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
-        this.selectedPoints.clear();
-      }
-      
-      // Redraw all skeletons in all directions
-      ViewState.skeletons.forEach(s => s.renderer.draw()); // THIS DOESNT WORK //??
-
-      e.stopPropagation();
-    });
-    this.layer.appendChild(bgHitbox);
+  // In SkeletonRenderer.js
+createCheckerboardPattern() {
+  // Same implementation as before
+  const svg = this.layer.ownerSVGElement;
+  let pattern = svg.getElementById('checkerboard-pattern');
+  
+  if (!pattern) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+    pattern.setAttribute('id', 'checkerboard-pattern');
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    pattern.setAttribute('width', '16');
+    pattern.setAttribute('height', '16');
+    
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bgRect.setAttribute('x', '0');
+    bgRect.setAttribute('y', '0');
+    bgRect.setAttribute('width', '16');
+    bgRect.setAttribute('height', '16');
+    bgRect.setAttribute('fill', '#AAAAAA');
+    
+    const square1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    square1.setAttribute('x', '0');
+    square1.setAttribute('y', '0');
+    square1.setAttribute('width', '8');
+    square1.setAttribute('height', '8');
+    square1.setAttribute('fill', '#CCCCCC');
+    
+    const square2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    square2.setAttribute('x', '8');
+    square2.setAttribute('y', '8');
+    square2.setAttribute('width', '8');
+    square2.setAttribute('height', '8');
+    square2.setAttribute('fill', '#CCCCCC');
+    
+    pattern.appendChild(bgRect);
+    pattern.appendChild(square1);
+    pattern.appendChild(square2);
+    
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
   }
+  
+  return 'url(#checkerboard-pattern)';
+}
+
+drawBgHitBox() {
+  // Get the checkerboard pattern
+  const patternFill = this.createCheckerboardPattern();
+  
+  // Find our bg layer
+  const parentGroup = this.layer.parentNode;
+  let bgLayer = parentGroup.querySelector('.bg-layer');
+  
+  // Create it if it doesn't exist
+  if (!bgLayer) {
+    bgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    bgLayer.setAttribute('class', 'bg-layer');
+    parentGroup.insertBefore(bgLayer, parentGroup.firstChild);
+  }
+  
+  // Clear existing background
+  bgLayer.innerHTML = '';
+  
+  // Create the background rectangle
+  const bgHitbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bgHitbox.setAttribute('x', '0');
+  bgHitbox.setAttribute('y', '0');
+  bgHitbox.setAttribute('width', '64');
+  bgHitbox.setAttribute('height', '64');
+  bgHitbox.setAttribute('fill', patternFill);
+  bgHitbox.style.cursor = 'pointer';
+  
+  // Add the event listeners
+  bgHitbox.addEventListener('mousedown', (e) => {
+    console.log(`(click) Background on skeleton ${this.id}`);
+    
+    // first and foremost, check if we are selecting references
+    const isSelectingReferences = window.isSelectingReferences;
+    console.log(`isSelectingReferences: ${isSelectingReferences}`);
+    if (isSelectingReferences) {
+      // Import the reference selection handler to avoid circular dependencies
+      console.log(`(click) Reference skeleton ${this.id}`);
+      import('./GenerationManager.js').then(module => {
+        module.handleReferenceSkeletonSelection(this.id);
+      });
+      e.stopPropagation();
+      return;
+    }
+
+    // Set active direction based on this skeleton's direction
+    const previousDirection = ViewState.activeDirection;
+    if (previousDirection !== this.direction) this.changeDirection(this.direction);
+
+    // Handle frame selection with modifier keys
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      // Toggle selection for this skeleton
+      if (ViewState.activeSkeletons.has(this.id)) {
+        ViewState.activeSkeletons.delete(this.id);
+        console.log(`Removed skeleton ${this.id} from selection`);
+      } else {
+        ViewState.activeSkeletons.add(this.id);
+        console.log(`Added skeleton ${this.id} to selection`);
+      }
+    } else {
+      // If no modifier key, select only this skeleton
+      ViewState.activeSkeletons.clear();
+      ViewState.activeSkeletons.add(this.id);
+      console.log(`Selected only skeleton ${this.id}`);
+    }
+    
+    // Dispatch an event if direction changed
+    if (previousDirection !== this.direction) {
+      const changeEvent = new CustomEvent('directionChanged', {
+        detail: { direction: this.direction }
+      });
+      document.dispatchEvent(changeEvent);
+    }
+    
+    // If point tool is active and no modifier key, clear point selections
+    if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
+      this.selectedPoints.clear();
+    }
+    
+    // Redraw all skeletons in all directions
+    ViewState.skeletons.forEach(s => s.renderer.draw());
+
+    e.stopPropagation();
+  });
+  
+  // Add to the bg layer
+  bgLayer.appendChild(bgHitbox);
+}
 
 
   drawBones() {
@@ -354,8 +416,8 @@ export class SkeletonRenderer {
       const pivotArea = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       pivotArea.setAttribute('cx', cx.toString());
       pivotArea.setAttribute('cy', cy.toString());
-      pivotArea.setAttribute('fill', 'rgba(0, 0, 0, 0)');
-      pivotArea.setAttribute('r', '3');
+      pivotArea.setAttribute('fill', 'rgba(0, 0, 0, 1)');
+      pivotArea.setAttribute('r', isSelected ? '2.2' : '1.7');
       // Add this to make size stay constant regardless of zoom
       pivotArea.setAttribute('transform', `scale(${7/(9+ViewState.scale)})`);
       pivotArea.setAttribute('transform-origin', `${cx} ${cy}`);
