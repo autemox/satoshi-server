@@ -9,6 +9,7 @@ export const Settings = {
   pixelLabApiKey: '',
   manualReferenceSelection: false,
   batchGenerationSize: 1,
+  lockPaletteColors: false, 
   clearImagesOnRefresh: false,
   autoSaveEnabled: true,
   autoSaveInterval: 60, // seconds
@@ -57,6 +58,7 @@ async function saveSettings(form) {
   Settings.pixelLabApiKey = newApiKey;
   Settings.manualReferenceSelection = form.manualReferenceSelection.checked;
   Settings.batchGenerationSize = parseInt(form.batchGenerationSize.value) || 1;
+  Settings.lockPaletteColors = form.lockPaletteColors.checked;
   Settings.clearImagesOnRefresh = form.clearImagesOnRefresh.checked;
   Settings.autoSaveEnabled = form.autoSaveEnabled.checked;
   Settings.autoSaveInterval = parseInt(form.autoSaveInterval.value) || 60;
@@ -270,8 +272,17 @@ export function openSettings() {
     'manualReferenceSelection',
     Settings.manualReferenceSelection
   );
-  genSettingsRow.appendChild(manualRefGroup);
-  
+  generationTab.appendChild(manualRefGroup);
+
+  // Lock Palette Colors
+  const lockPaletteGroup = createCheckboxGroup(
+    'Lock Palette Colors',
+    'Force generations to use the same color palette as the reference images',
+    'lockPaletteColors',
+    Settings.lockPaletteColors
+  );
+  generationTab.appendChild(lockPaletteGroup);
+
   // Batch Generation Size
   const batchSizeGroup = createFormGroup(
     'Batch Size',
@@ -279,13 +290,13 @@ export function openSettings() {
     'number',
     'batchGenerationSize',
     Settings.batchGenerationSize.toString(),
-    false // Half width
+    true // Now full width
   );
   // Add min/max attributes to number input
   const batchSizeInput = batchSizeGroup.querySelector('input');
   batchSizeInput.min = '1';
   batchSizeInput.max = '10';
-  genSettingsRow.appendChild(batchSizeGroup);
+  generationTab.appendChild(batchSizeGroup);
   
   // === AUTO-SAVE TAB ===
   const autosaveTab = tabContents['autosave'];

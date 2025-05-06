@@ -205,11 +205,11 @@ export async function exportSpriteSheet() {
       .replace(/[^a-z0-9]/gi, '-') // Replace non-alphanumeric chars with -
       .toLowerCase();
     
-    a.download = `${safeProjectName}_spritesheet.png`;
+    a.download = `${safeProjectName}.png`;
     document.body.appendChild(a);
     a.click();
 
-    showToast(`Saved ${safeProjectName}_spritesheet.png to your downloads folder`, 'green');
+    showToast(`Saved ${safeProjectName}.png to your downloads folder`, 'green');
 
     setTimeout(() => {
       document.body.removeChild(a);

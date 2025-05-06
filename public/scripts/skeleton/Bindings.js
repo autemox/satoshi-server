@@ -226,7 +226,6 @@ export function bindShortcuts() {
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault();
       console.log('[Shortcut] DELETE triggered');
       handleDelete();
     }

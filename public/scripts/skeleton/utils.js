@@ -18,6 +18,25 @@ export function getSvg(id) {
   }
 
 
+  /**
+   * Gets the opposite direction for mirroring
+   * @param {string} direction - The current direction
+   * @returns {string} - The opposite direction
+   */
+  export function getOppositeDirection(direction) {
+    const opposites = {
+      'north': 'south',
+      'south': 'north',
+      'east': 'west',
+      'west': 'east',
+      'north-east': 'south-west',
+      'south-west': 'north-east',
+      'north-west': 'south-east',
+      'south-east': 'north-west'
+    };
+    return opposites[direction] || direction;
+  }
+
 export function debounce(func, wait) {
     let timeout;
     return function(...args) {

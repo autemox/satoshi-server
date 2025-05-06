@@ -5,7 +5,7 @@
 import fs from 'fs/promises';
 import { readFileSync } from 'fs';
 import { createCanvas, loadImage } from 'canvas';
-import { PixelPoser } from './PixelLabPoser';
+import { PixelLabSpriteGenerator } from './PixelLabSpriteGenerator';
 
 export class PixelLabSpritesheetGenerator 
 {
@@ -58,7 +58,7 @@ export class PixelLabSpritesheetGenerator
       directionBase64s[directions[i]] = base64;
     }
 
-    const pixelPoser = new PixelPoser();
+    const pixelPoser = new PixelLabSpriteGenerator();
 
     // helper function for retry logic
     const tryGeneratePose = async (baseImage: string, pose: string, direction: string, maxAttempts = 5) => {

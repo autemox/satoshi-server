@@ -153,7 +153,10 @@ function addSkeleton(id, keypoints, direction) {
   const offsetY = getDirectionRowOffset(direction);
   group.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
   
-  // Create the renderer that will draw the skeleton (bones and joints)
+  // Create the renderer that will draw the 
+  // 
+  // s
+  // keleton (bones and joints)
   const renderer = new SkeletonRenderer(
     id,
     skeletonLayer, // Now using the skeleton layer specifically

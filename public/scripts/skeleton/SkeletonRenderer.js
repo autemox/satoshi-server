@@ -54,7 +54,9 @@ function getColorForLabel(label) {
 import { uploadJson, uploadImage, downloadImage, downloadJson, generateImage } from './Actions.js';
 import { ViewState } from './ViewState.js';
 import { handleImageToClipboard, handleImageFromClipboard, handleSkeletonToClipboard, handleSkeletonFromClipboard } from './Bindings.js';
-import { showToast, findSkeletonById } from './utils.js';
+import { showToast, findSkeletonById, getOppositeDirection } from './utils.js';
+import { showRotationGenerationDialog } from './RotationScreen.js';
+import { reflectImageFromOpposite, reflectSkeletonFromOpposite } from './ReflectionOperations.js';
 
 export class SkeletonRenderer {
   constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget, direction) {
@@ -92,12 +94,20 @@ export class SkeletonRenderer {
       // Set the image source
       skeleton.imageEl.setAttribute('href', gen.image);
       
-      // Move the image to the beginning of its parent container
-      // so it appears below all other elements (including the skeleton)
-      const parent = skeleton.imageEl.parentNode;
-      if (parent) {
-        parent.removeChild(skeleton.imageEl);
-        parent.insertBefore(skeleton.imageEl, parent.firstChild);
+      // Ensure the image is visible (this is important!)
+      skeleton.imageEl.style.display = '';
+      
+      // Make sure the image is in the correct layer
+      const imageLayer = skeleton.group.querySelector('.image-layer');
+      if (imageLayer) {
+        // Remove the image from its current parent
+        const parent = skeleton.imageEl.parentNode;
+        if (parent) {
+          parent.removeChild(skeleton.imageEl);
+        }
+        
+        // Add it to the proper image layer at the beginning
+        imageLayer.insertBefore(skeleton.imageEl, imageLayer.firstChild);
       }
     }
   
@@ -456,47 +466,66 @@ drawBgHitBox() {
     }
   }
 
-  /**
-   * Draws the menu button for a skeleton
-   * @param {SVGGElement} parent - The parent layer to add the button to
-   */
   drawFrameButtons() {
-
     // only draw menu button if this direction is active
     if (!ViewState.activeSkeletons.has(this.id)) return;
-
+  
     // Create a group for the buttons
     const buttonGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     buttonGroup.setAttribute('id', `frame-buttons-${this.id}`);
-
+  
+    // Create a darker background for the lightning button
+    const lightningBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    lightningBg.setAttribute('cx', '6');
+    lightningBg.setAttribute('cy', '57');
+    lightningBg.setAttribute('r', '5');
+    lightningBg.setAttribute('fill', '#333333'); // Dark background
+    lightningBg.setAttribute('stroke', '#555555');
+    lightningBg.setAttribute('stroke-width', '0.5');
+    buttonGroup.appendChild(lightningBg);
+  
     // ⚡ Lightning bolt button
     const lightningButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     lightningButton.setAttribute('x', '6'); // adjust left of menu
     lightningButton.setAttribute('y', '60');
     lightningButton.setAttribute('text-anchor', 'middle');
     lightningButton.setAttribute('font-size', '7');
-    lightningButton.setAttribute('fill', 'yellow');
+    lightningButton.setAttribute('fill', '#FFDD00'); // Brighter yellow
+    lightningButton.setAttribute('stroke', '#000000'); // Black outline
+    lightningButton.setAttribute('stroke-width', '0.3');
     lightningButton.setAttribute('pointer-events', 'all'); // allow clicks
     lightningButton.style.cursor = 'pointer';
     lightningButton.style.userSelect = 'none';
     lightningButton.textContent = '⚡';
-
+  
+    // Create a darker background for the menu button
+    const menuBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    menuBg.setAttribute('cx', '58');
+    menuBg.setAttribute('cy', '57');
+    menuBg.setAttribute('r', '5');
+    menuBg.setAttribute('fill', '#333333'); // Dark background
+    menuBg.setAttribute('stroke', '#555555');
+    menuBg.setAttribute('stroke-width', '0.5');
+    buttonGroup.appendChild(menuBg);
+  
     // ☰ Menu button
     const menuButton = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     menuButton.setAttribute('x', '58');
-    menuButton.setAttribute('y', '60');
+    menuButton.setAttribute('y', '59');
     menuButton.setAttribute('text-anchor', 'middle');
     menuButton.setAttribute('font-size', '7');
-    menuButton.setAttribute('fill', 'white');
+    menuButton.setAttribute('fill', '#FFFFFF'); // White text
+    menuButton.setAttribute('stroke', '#000000'); // Black outline
+    menuButton.setAttribute('stroke-width', '0.3');
     menuButton.setAttribute('pointer-events', 'none');
     menuButton.style.userSelect = 'none';
     menuButton.textContent = '☰';
-
+  
     // Add both buttons into the group
     buttonGroup.appendChild(lightningButton);
     buttonGroup.appendChild(menuButton);
     this.layer.appendChild(buttonGroup);
-
+  
     // Add the click handler for the lightning
     lightningButton.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -504,12 +533,11 @@ drawBgHitBox() {
       console.log('[⚡] Quick generate pressed!');
       generateImage();
     });
-
-    // (Your existing hitArea + click for menu button stays same)
-    // Add a larger invisible hit area
+  
+    // Add a larger invisible hit area for the menu button
     const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    hitArea.setAttribute('x', '54');
-    hitArea.setAttribute('y', '54');
+    hitArea.setAttribute('x', '53');
+    hitArea.setAttribute('y', '52');
     hitArea.setAttribute('width', '10');
     hitArea.setAttribute('height', '10');
     hitArea.setAttribute('fill', 'rgba(255, 255, 255, 0.01)'); // Nearly invisible
@@ -542,6 +570,7 @@ drawBgHitBox() {
       }
     });
   }
+  
 
   /**
    * Draws the menu content when opened
@@ -573,7 +602,7 @@ drawBgHitBox() {
     modalContent.style.border = '1px solid #888';
     modalContent.style.borderRadius = '5px';
     modalContent.style.padding = '20px';
-    modalContent.style.width = '400px'; // Wider to accommodate two columns
+    modalContent.style.width = '500px'; 
     modalContent.style.color = 'white';
     modalContent.style.fontFamily = 'sans-serif';
     
@@ -594,6 +623,10 @@ drawBgHitBox() {
     gridContainer.style.gap = '10px'; // Space between columns and rows
     modalContent.appendChild(gridContainer);
     
+    // Get the opposite direction
+    const oppositeDirection = getOppositeDirection(this.direction);
+    const oppositeCapitalized = oppositeDirection.charAt(0).toUpperCase() + oppositeDirection.slice(1);
+    
     // Menu items
     const menuItems = [
       ['📄', 'Upload JSON', uploadJson],
@@ -605,10 +638,11 @@ drawBgHitBox() {
       ['📋', 'Skeleton to Clipboard', handleSkeletonToClipboard],
       ['📝', 'Skeleton from Clipboard', handleSkeletonFromClipboard],
       ['⚡', 'Generate Using Skeleton', generateImage],
-      ['🔄', 'Generate Using Rotation', () => { console.log('Generate using rotation'); }],
-      // Empty 8th slot to make the grid even
-      ['', '', () => {}]
+      ['🔄', 'Generate Using Rotation', showRotationGenerationDialog],
+      ['🪞', `Mirror Image from ${oppositeCapitalized}`, reflectImageFromOpposite],
+      ['🦴', `Mirror Skeleton from ${oppositeCapitalized}`, reflectSkeletonFromOpposite],
     ];
+    
     
     // Create buttons for each menu item
     menuItems.forEach(([icon, label, callback]) => {

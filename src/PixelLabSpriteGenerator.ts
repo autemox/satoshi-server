@@ -25,11 +25,87 @@ type SkeletonData = {
   pose_keypoints: Keypoint[][];
 };
 
-export class PixelPoser {
+export class PixelLabSpriteGenerator {
   private readonly apiUrl = 'https://api.pixellab.ai/v1/animate-with-skeleton';
   private readonly imageSize = { width: 64, height: 64 };
 
   constructor() {
+  }
+
+  // Generates a pose from another image using rotation
+  async generatePoseFromRotation(
+    base64Image: string, 
+    fromDirection: string, 
+    toDirection: string, 
+    fromView: string = 'side', 
+    toView: string = 'side', 
+    apiKey?: string, 
+    lockPaletteColors: boolean = true,
+    imageGuidanceScale: number = 3,
+  ): Promise<Buffer|null> {
+    console.log(`🔄 Rotating image from "${fromDirection}" to "${toDirection}"`);
+    
+    // Strip data URL prefix if present
+    const cleanedBase64 = this.StripDataUrl(base64Image);
+    
+    // Prepare API payload based on documentation
+    const payload = {
+      image_size: this.imageSize,
+      image_guidance_scale: imageGuidanceScale, // Default from docs
+      from_view: fromView,
+      to_view: toView,
+      from_direction: fromDirection,
+      to_direction: toDirection,
+      isometric: false,
+      oblique_projection: false,
+      from_image: {
+        type: 'base64',
+        base64: cleanedBase64
+      },
+      ...(lockPaletteColors ? {
+        color_image: {
+          type: 'base64',
+          base64: cleanedBase64 // Lock available palette colors
+        }
+      } : {})
+    };
+    
+    // Try up to 5 times
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      console.log(`🔄 Attempt ${attempt} of 5`);
+      
+      try {
+        // Use provided API key or fallback to environment variable
+        if (!apiKey || apiKey === '' || apiKey.length < 5) apiKey = process.env.PIXEL_LAB_API_KEY_DEVELOPMENT;
+        
+        // Make API request
+        const res = await axios.post('https://api.pixellab.ai/v1/rotate', payload, {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 600000 // 10 minutes
+        });
+        
+        console.log(`✅ Rotated image successfully!`);
+        
+        // Extract image from response
+        if (res.data && res.data.image && res.data.image.base64) {
+          const buffer = Buffer.from(res.data.image.base64, 'base64');
+          return buffer;
+        } else {
+          console.error('❌ Unexpected API response format');
+        }
+      } catch (err: any) {
+        console.error('❌ API Error:', err.response?.data || err.message);
+      }
+      
+      // Wait before retrying
+      if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+    
+    console.error('❌ All rotation retry attempts failed');
+    return null;
   }
 
     // takes a pose string and direction and finds relavent json files from pose
@@ -55,11 +131,11 @@ export class PixelPoser {
         throw new Error('❌ Skeleton JSON files are missing pose_keypoints');
   
       // Call the base method with the loaded skeletons
-      return this.generatePoseWithSkeletons(base64Image, referenceData.pose_keypoints[0], poseData.pose_keypoints[0], direction, pose);
+      return this.generatePoseWithSkeletons(base64Image, referenceData.pose_keypoints[0], poseData.pose_keypoints[0], direction, pose, undefined);
     }
 
     // New method - takes 2 skeletons + 1 reference image
-  async generatePoseWithSkeletons(base64Image: string, referenceSkeleton: Keypoint[], skeletonToGenerateFrom: Keypoint[], direction: string, poseForSaveFile?: string, apiKey?: string): Promise<Buffer|null> {
+  async generatePoseWithSkeletons(base64Image: string, referenceSkeleton: Keypoint[], skeletonToGenerateFrom: Keypoint[], direction: string, poseForSaveFile?: string, apiKey?: string, lockPaletteColors = true): Promise<Buffer|null> {
     
     console.log(`🦴 Generating pose with provided skeletons, direction: "${direction}"`);
     console.log(`🦴 base64Image details: ${base64Image}`);
@@ -78,7 +154,8 @@ export class PixelPoser {
       skeletonToGenerateFrom,       // Target skeleton to generate an image from this skeleton
       direction,
       poseForSaveFile,
-      apiKey
+      apiKey,
+      lockPaletteColors
     );
   }
 
@@ -97,7 +174,8 @@ export class PixelPoser {
     skeletonToGenerateFrom: Keypoint[],
     direction: string,
     poseForSaveFile?: string,
-    apiKey?: string
+    apiKey?: string,
+    lockPaletteColors: boolean = true
   ): Promise<Buffer|null> {
     console.log(`🦴 Generating pose with multiple skeletons, direction: "${direction}"`);
     
@@ -113,7 +191,8 @@ export class PixelPoser {
         skeletonToGenerateFrom,
         direction,
         poseForSaveFile,
-        apiKey
+        apiKey,
+        lockPaletteColors
       );
       
       if (result) return result; // Success!
@@ -135,7 +214,8 @@ export class PixelPoser {
     skeletonToGenerateFrom: Keypoint[],
     direction: string,
     poseForSaveFile?: string,
-    apiKey?: string
+    apiKey?: string,
+    lockPaletteColors: boolean = true
   ): Promise<Buffer|null> {
 
     // convert date url images to base64 string only images
@@ -178,14 +258,16 @@ export class PixelPoser {
           null,
           null
         ],
-        color_image: {
-          type: 'base64',
-          base64: base64Image1 // lock avaialble palette colors
-        }
+        ...(lockPaletteColors ? {
+          color_image: {
+            type: 'base64',
+            base64: base64Image1 // Lock available palette colors
+          }
+        } : {})
       };
 
-    // Debug payload, if needed
-    //console.log(`📦 Payload Preview: { image_size: ${JSON.stringify(payload.image_size)}, guidance_scale: ${payload.guidance_scale}, view: "${payload.view}", direction: "${payload.direction}", skeleton_keypoints: [Frame1: ${payload.skeleton_keypoints[0].length} points, Frame2: ${payload.skeleton_keypoints[1].length} points, Frame3: ${payload.skeleton_keypoints[2].length} points], reference_image: base64 (${payload.reference_image.base64.length} bytes), inpainting_images: [base64 (${payload.inpainting_images[0]?.base64.length ?? 0} bytes), ${payload.inpainting_images[1] === null ? 'null' : 'non-null'}, ${payload.inpainting_images[2] === null ? 'null' : 'non-null'}], mask_images: [${payload.mask_images.join(', ')}] }`);
+      // Debug payload, if needed
+      //console.log(`📦 Payload Preview: { image_size: ${JSON.stringify(payload.image_size)}, guidance_scale: ${payload.guidance_scale}, view: "${payload.view}", direction: "${payload.direction}", skeleton_keypoints: [Frame1: ${payload.skeleton_keypoints[0].length} points, Frame2: ${payload.skeleton_keypoints[1].length} points, Frame3: ${payload.skeleton_keypoints[2].length} points], reference_image: base64 (${payload.reference_image.base64.length} bytes), inpainting_images: [base64 (${payload.inpainting_images[0]?.base64.length ?? 0} bytes), ${payload.inpainting_images[1] === null ? 'null' : 'non-null'}, ${payload.inpainting_images[2] === null ? 'null' : 'non-null'}], mask_images: [${payload.mask_images.join(', ')}] }`);
     
     try {
 

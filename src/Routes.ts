@@ -6,7 +6,8 @@
 
 import { Router, Request, Response } from 'express';
 import { Main } from './Main';
-import { PixelPoser } from './PixelLabPoser';
+import { PixelLabSpriteGenerator } from './PixelLabSpriteGenerator';
+import axios from 'axios';
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -15,6 +16,7 @@ export class Routes
 {
   private router: Router;
   private main: Main;
+  private spriteGenerator: PixelLabSpriteGenerator;
 
   private rateLimiter: { [ip: string]: number } = {};
   private limitToOneCallEveryXMinutes: number = 5; // 5 minutes
@@ -24,6 +26,7 @@ export class Routes
     this.main = main;
     this.router = Router();
     this.setupRoutes();
+    this.spriteGenerator = new PixelLabSpriteGenerator();
   }
 
   private setupRoutes(): void 
@@ -102,7 +105,56 @@ export class Routes
       }
     });
 
-    // Add this to your setupRoutes method in the Routes class
+    this.router.post('/api/generate-from-rotation', async (req: Request, res: Response) => {
+      try {
+        // Extract required parameters from request body
+        const { 
+          base64Image, 
+          fromDirection, 
+          toDirection, 
+          fromView,
+          toView, 
+          apiKey,
+          lockPaletteColors = true,
+          imageGuidanceScale = 3 
+        } = req.body;
+        
+        // Validate required parameters
+        if (!base64Image || !fromDirection || !toDirection) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Missing required parameters: base64Image, fromDirection, and toDirection are required' 
+          });
+        }
+        
+        // Call the generator method with extracted parameters
+        let imageBuffer = await this.spriteGenerator.generatePoseFromRotation(
+          base64Image,
+          fromDirection,
+          toDirection,
+          fromView,
+          toView,
+          apiKey,
+          lockPaletteColors,
+          imageGuidanceScale
+        );
+    
+        if (!imageBuffer) {
+          console.log('No image buffer returned from PixelLabSpriteGenerator');
+          return res.status(500).json({ success: false, error: 'Failed to generate image' });
+        }
+        else {
+          // success
+          console.log('Image generated successfully, buffer size:', imageBuffer.length);
+          res.json({ success: true, image: imageBuffer.toString('base64') });
+        }
+      }
+      catch (error) {
+        console.error('Error generating image from rotation:', error);
+        res.status(500).json({ success: false, error: 'Server error while generating image' });
+      }
+    });
+
     this.router.post('/api/generate-from-skeleton', async (req: Request, res: Response) => {
       try {
         console.log('/api/generate-from-skeleton called');
@@ -110,13 +162,14 @@ export class Routes
         // Log the entire request body for debugging
         console.log('Request body:', JSON.stringify(req.body, null, 2));
         
-        const { apiKey, refImage, refImage2 = null, refSkeleton1, refSkeleton2 = null, skeletonToGenerateFrom, direction = "west" } = req.body;
+        const { apiKey, lockPaletteColors, refImage, refImage2 = null, refSkeleton1, refSkeleton2 = null, skeletonToGenerateFrom, direction = "west" } = req.body;
         
         // Log the extracted values
         console.log('refImage length:', refImage ? refImage.length : 'undefined');
         console.log('refSkeleton1:', refSkeleton1 ? `Array with ${refSkeleton1.length} items` : 'undefined');
         console.log('skeletonToGenerateFrom:', skeletonToGenerateFrom ? `Array with ${skeletonToGenerateFrom.length} items` : 'undefined');
         console.log('direction:', direction);
+        console.log('lockPaletteColors:', lockPaletteColors); 
         
         if (!refImage || !refSkeleton1 || !skeletonToGenerateFrom) {
           console.log('Missing required fields!');
@@ -124,18 +177,18 @@ export class Routes
         }
         
         try {
-          let pixelPoser = new PixelPoser();
           console.log('PixelPoser created successfully');
           
           let imageBuffer = refImage2 && refSkeleton2
-            ? await pixelPoser.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction, apiKey)
-            : await pixelPoser.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction, apiKey);
+            ? await this.spriteGenerator.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction, apiKey, lockPaletteColors)
+            : await this.spriteGenerator.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction, apiKey, lockPaletteColors);
           
           if (!imageBuffer) {
             console.log('No image buffer returned from PixelPoser');
             return res.status(500).json({ success: false, error: 'Failed to generate image' });
           }
           
+          // success
           console.log('Image generated successfully, buffer size:', imageBuffer.length);
           res.json({ success: true, image: imageBuffer.toString('base64') });
           
@@ -195,6 +248,8 @@ export class Routes
         res.status(500).json({ error: 'Failed to load spritesheet files' });
       }
     });
+
+    
   }
 
   public getRouter(): Router 
