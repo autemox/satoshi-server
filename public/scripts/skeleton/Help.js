@@ -141,7 +141,9 @@ export function openHelp() {
   <li><strong>New</strong>: Start a blank project</li>
   <li><strong>Save</strong>: Download a <code>.lyslesheet</code> project file</li>
   <li><strong>Load</strong>: Load a saved project file</li>
+  <li><strong>Samples</strong>: Load example projects from the developer</li>
   <li><strong>Export</strong>: Generate a <code>.png</code> spritesheet (64x64 per frame)</li>
+  <li><strong>Import</strong>: Load a <code>.png</code> spritesheet in.  To load correctly, make sure its 64x64 per frame.  Keep it the same in appearance as an export</li>
 </ul>
 
 <hr/>

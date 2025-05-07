@@ -9,8 +9,9 @@ import { getSvg, showToast, debounce } from './utils.js';
 import { ViewState } from './ViewState.js';
 import { bindShortcuts } from './Bindings.js';
 import { generateImage } from './GenerationManager.js';
-import { saveLysleSheet, loadLysleSheet, exportSpriteSheet, loadProjectFromStorage, newProject } from './LysleSheetManager.js';
+import { saveLysleSheet, loadLysleSheet, loadProjectFromStorage, newProject, loadSample } from './LysleSheetManager.js';
 import { initSettings, Settings } from './Settings.js';
+import { importSpriteSheet, exportSpriteSheet } from './ImportExportPng.js';
 
 console.log('Main.js loaded');
 
@@ -429,16 +430,22 @@ export async function clearCurrentProject() {
   
 function bindToolbarButtons() {
   const newButton = document.querySelector('[data-button="new"]');
-  if (newButton) newButton.addEventListener('click', newProject);
+  if (newButton) newButton.addEventListener('click', () => newProject());
 
   const saveButton = document.querySelector('[data-button="save"]');
   if (saveButton) saveButton.addEventListener('click', () => saveLysleSheet(false));
 
-  const exportButton = document.querySelector('[data-button="export"]');
-  if (exportButton) exportButton.addEventListener('click', exportSpriteSheet);
+  const exportButton = document.querySelector('[data-button="exportpng"]');
+  if (exportButton) exportButton.addEventListener('click', () => exportSpriteSheet());
+
+  const importButton = document.querySelector('[data-button="importpng"]');
+  if (importButton) importButton.addEventListener('click', () => importSpriteSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget));
 
   const loadButton = document.querySelector('[data-button="load"]');
   if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
+
+  const loadSampleButton = document.querySelector('[data-button="loadsample"]');
+  if (loadSampleButton) loadSampleButton.addEventListener('click', () => loadSample());
 }
 
   function disableTextSelection() {

@@ -56,7 +56,7 @@ export function newProject() {
 
   box.innerHTML = `
     <div style="font-size: 18px; font-weight: bold;">New Project</div>
-    <div>⚠️ This will erase your current project. Have you saved?</div>
+    <div>⚠️ This will erase your current project.  Save before entering your new project name below.</div>
     <input type="text" id="new-project-name" placeholder="Enter new project name" style="padding: 6px; border-radius: 5px; border: none;">
     <div style="display: flex; justify-content: center; gap: 10px;">
       <button id="confirm-new-project" style="padding: 6px 12px; background: green; color: white; border: none; border-radius: 5px; cursor: pointer;">Start New</button>
@@ -97,7 +97,7 @@ export function newProject() {
 }
 
 // Helper to get corresponding frame from opposite direction when missing
-async function getFrameForDirection(col, dir, skeletonsByDirection) {
+export async function getFrameForDirection(col, dir, skeletonsByDirection) {
   const skeletons = skeletonsByDirection[dir] || [];
   // Skip first two (reference + optional reference)
   const frames = skeletons.slice(2);
@@ -132,96 +132,9 @@ async function getFrameForDirection(col, dir, skeletonsByDirection) {
   return null; // Nothing found in either direction
 }
 
-export async function exportSpriteSheet() {
-  console.log('[SPRITESHEET] Exporting sprite sheet...');
-
-  const directions = ['north', 'east', 'south', 'west'];
-
-  // Find max number of frames (excluding reference frames)
-  let maxFrames = 0;
-  for (const dir of directions) {
-    const skeletons = ViewState.skeletonsByDirection[dir] || [];
-    const frames = skeletons.length - 2; // skip required and optional reference
-    if (frames > maxFrames) maxFrames = frames;
-  }
-
-  const frameSize = 64; // each frame is 64x64
-  const canvasWidth = maxFrames * frameSize;
-  const canvasHeight = directions.length * frameSize;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = canvasWidth;
-  canvas.height = canvasHeight;
-  const ctx = canvas.getContext('2d');
-
-  // Clear canvas with transparent background
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-  for (let row = 0; row < directions.length; row++) {
-    const dir = directions[row];
-    
-    for (let col = 0; col < maxFrames; col++) {
-      // Try to get frame or its flipped counterpart if it's east/west
-      let img = null;
-      
-      if (dir === 'east' || dir === 'west') {
-        img = await getFrameForDirection(col, dir, ViewState.skeletonsByDirection);
-      } else {
-        // For north/south, just get the regular frame
-        const skeletons = ViewState.skeletonsByDirection[dir] || [];
-        const frames = skeletons.slice(2);
-        
-        if (col < frames.length) {
-          const skeleton = frames[col];
-          const imageHref = skeleton.imageEl?.getAttribute('href');
-          
-          if (imageHref && imageHref !== 'data:,' && imageHref.trim() !== '') {
-            img = await loadImage(imageHref);
-          }
-        }
-      }
-      
-      if (img) {
-        ctx.drawImage(
-          img,
-          col * frameSize,
-          row * frameSize,
-          frameSize,
-          frameSize
-        );
-      }
-    }
-  }
-
-  // Download the canvas as PNG with project name
-  canvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    
-    // Use project name for the file name (sanitized for file system)
-    const safeProjectName = Settings.projectName
-      .replace(/[^a-z0-9]/gi, '-') // Replace non-alphanumeric chars with -
-      .toLowerCase();
-    
-    a.download = `${safeProjectName}.png`;
-    document.body.appendChild(a);
-    a.click();
-
-    showToast(`Saved ${safeProjectName}.png to your downloads folder`, 'green');
-
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
-  }, 'image/png');
-
-  console.log('[SPRITESHEET] Export complete.');
-}
 
 // Helper to load image from href
-function loadImage(src) {
+export function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous'; // important if images are data: URLs
@@ -600,4 +513,199 @@ export function clearStoredProject() {
 export function hasStoredProject() {
   const projectData = localStorage.getItem('lysleToolProject');
   return !!projectData;
+}
+
+
+export function loadSample() {
+  console.log('[LYSLESHEET] Loading sample...');
+
+  // Create modal overlay
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = 0;
+  modal.style.left = 0;
+  modal.style.width = '100vw';
+  modal.style.height = '100vh';
+  modal.style.background = 'rgba(0, 0, 0, 0.7)';
+  modal.style.display = 'flex';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+  modal.style.zIndex = 1000;
+  modal.style.fontFamily = 'Arial, sans-serif';
+
+  // Modal content
+  const box = document.createElement('div');
+  box.style.background = '#333';
+  box.style.padding = '20px';
+  box.style.borderRadius = '10px';
+  box.style.color = 'white';
+  box.style.width = '300px';
+  box.style.display = 'flex';
+  box.style.flexDirection = 'column';
+  box.style.gap = '10px';
+
+  box.innerHTML = `
+    <h3 style="margin-top: 0; text-align: center;">Load Sample</h3>
+    <p style="margin: 0; font-size: 12px; text-align: center;">⚠️ This will replace your current project.</p>
+    <p style="margin: 0; font-size: 14px; text-align: left;"><b>Samples:</b></p>
+    <div id="sample-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+      <button id="sample-little-girl" style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; text-align: left;">Little Girl</button>
+      <button id="sample-villager-female" style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; text-align: left;">Villager Female</button>
+    </div>
+    <button id="cancel-load-sample" style="margin-top: 10px; padding: 8px; background: #555; border: none; color: white; border-radius: 5px; cursor: pointer;">Cancel</button>
+  `;
+
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+
+  // Sample button hover effects
+  const sampleButtons = document.querySelectorAll('#sample-list button');
+  sampleButtons.forEach(button => {
+    button.addEventListener('mouseover', () => {
+      button.style.background = '#3a3a3a';
+    });
+    
+    button.addEventListener('mouseout', () => {
+      button.style.background = '#2a2a2a';
+    });
+  });
+
+  // Sample button actions
+  document.getElementById('sample-little-girl').addEventListener('click', () => {
+    loadSampleFile('/samples/little-girl.lyslesheet');
+    document.body.removeChild(modal);
+  });
+  
+  document.getElementById('sample-villager-female').addEventListener('click', () => {
+    loadSampleFile('/samples/villager-female-1.lyslesheet');
+    document.body.removeChild(modal);
+  });
+
+  // Cancel button action
+  document.getElementById('cancel-load-sample').addEventListener('click', () => {
+    document.body.removeChild(modal);
+  });
+}
+
+// Load a specific sample file by URL
+function loadSampleFile(url) {
+  console.log(`[LYSLESHEET] Loading sample from ${url}...`);
+  
+  fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error(`Failed to load sample: ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      if (!data.skeletonsByDirection || typeof data.skeletonsByDirection !== 'object') {
+        throw new Error('Invalid lyslesheet file structure.');
+      }
+
+      // Clear existing skeletons
+      for (const dir of Object.keys(ViewState.skeletonsByDirection)) {
+        ViewState.skeletonsByDirection[dir].forEach(s => {
+          if (s.group?.parentNode) {
+            s.group.parentNode.removeChild(s.group);
+          }
+        });
+        ViewState.skeletonsByDirection[dir] = [];
+      }
+
+      const scene = document.getElementById('scene');
+
+      for (const [direction, skeletons] of Object.entries(data.skeletonsByDirection)) {
+        for (let i = 0; i < skeletons.length; i++) {
+          const s = skeletons[i];
+
+          const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          group.setAttribute('id', s.id);
+
+          const offsetX = i * 70;
+          const offsetY = getDirectionRowOffset(direction);
+
+          group.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
+
+          // Create layers properly
+          const bgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          bgLayer.setAttribute('class', 'bg-layer');
+          group.appendChild(bgLayer);
+          
+          const imageLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          imageLayer.setAttribute('class', 'image-layer');
+          group.appendChild(imageLayer);
+          
+          const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+          imageEl.setAttribute('x', '0');
+          imageEl.setAttribute('y', '0');
+          imageEl.setAttribute('width', '64');
+          imageEl.setAttribute('height', '64');
+          
+          if (s.imageHref && s.imageHref !== 'data:,' && s.imageHref.trim() !== '' && 
+            !s.imageHref.includes('data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP')) {
+              imageEl.setAttribute('href', s.imageHref);
+          } else imageEl.removeAttribute('href');
+          
+          imageEl.setAttribute('pointer-events', 'none');
+          imageLayer.appendChild(imageEl);
+          
+          const skeletonLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+          skeletonLayer.setAttribute('class', 'skeleton-layer');
+          group.appendChild(skeletonLayer);
+
+          scene.appendChild(group);
+
+          const renderer = new SkeletonRenderer(
+            s.id,
+            skeletonLayer,
+            s.keypoints,
+            getActiveTool,
+            selectedPoints,
+            isDraggingPoint, 
+            dragTarget, 
+            direction
+          );
+
+          ViewState.skeletonsByDirection[direction].push({
+            id: s.id,
+            group,
+            renderer,
+            imageEl
+          });
+
+          renderer.draw();
+        }
+      }
+
+      // Set project name if available
+      if (data.projectName) {
+        Settings.projectName = data.projectName;
+      } else {
+        // Extract name from URL
+        const filename = url.split('/').pop()?.replace('.lyslesheet', '') || 'Sample Project';
+        Settings.projectName = filename;
+      }
+
+      // Load view settings
+      if (data.view) {
+        ViewState.offsetX = data.view.offsetX ?? 480;
+        ViewState.offsetY = data.view.offsetY ?? 480;
+        ViewState.scale = data.view.scale ?? 8;
+      }
+
+      const sceneGroup = document.getElementById('scene');
+      if (sceneGroup) {
+        sceneGroup.setAttribute('transform', `translate(${ViewState.offsetX}, ${ViewState.offsetY}) scale(${ViewState.scale})`);
+      }
+
+      reflowRows();
+      updateAllPlusBoxes();
+      updateDirectionLabels();
+
+      showToast(`Loaded sample: ${Settings.projectName}`, 'green');
+      console.log('[LYSLESHEET] Sample loaded successfully');
+    })
+    .catch(err => {
+      console.error('[LYSLESHEET] Failed to load sample:', err);
+      showToast(`Failed to load sample: ${err.message}`, 'red');
+    });
 }
