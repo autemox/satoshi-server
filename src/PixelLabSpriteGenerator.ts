@@ -76,9 +76,10 @@ export class PixelLabSpriteGenerator {
       
       try {
         // Use provided API key or fallback to environment variable
-        if (!apiKey || apiKey === '' || apiKey.length < 5) apiKey = process.env.PIXEL_LAB_API_KEY_DEVELOPMENT;
+        apiKey = this.CheckApiKey(apiKey); // Check if the API key is valid
         
         // Make API request
+        console.log('API Key being sent:', apiKey); 
         const res = await axios.post('https://api.pixellab.ai/v1/rotate', payload, {
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -143,6 +144,7 @@ export class PixelLabSpriteGenerator {
     console.log(`🦴 skeletonToGenerateFrom details: ${JSON.stringify(skeletonToGenerateFrom)}`);
     console.log(`🦴 direction: ${direction}`);
     console.log(`🦴 poseForSaveFile: ${poseForSaveFile}`);
+    console.log(`🦴 apiKey: ${apiKey}`);
     console.log(`🦴 ------------`);
 
     // Call the advanced method by duplicating the reference skeleton and image
@@ -163,6 +165,24 @@ export class PixelLabSpriteGenerator {
     // Check if it's a data URL and strip the prefix if present
     const matches = input.match(/^data:image\/\w+;base64,(.*)$/);
     return matches ? matches[1] : input;
+  }
+
+  // Check if the API key is valid
+  CheckApiKey(apiKey: string | undefined): string {
+
+      // Check if API key is provided
+      if(!apiKey || apiKey === '' || apiKey.length<5) 
+        {
+            console.log('❌ API Key is missing or invalid, using development key');
+            apiKey = process.env.PIXEL_LAB_API_KEY_DEVELOPMENT; // PIXEL_LAB_API_KEY_DEVELOPMENT is purposely not set on the aws server, since other people can use the lysle.net/skeleton app
+  
+            if(!apiKey || apiKey === '' || apiKey.length<5)
+            {
+                console.log('❌ API Key is missing or invalid, using development key');
+                throw new Error('❌ API Key is missing or invalid');
+            }
+        }
+    return apiKey;
   }
 
   // Advanced method - takes 3 skeletons + 2 reference images, this has the retry logic
@@ -231,7 +251,7 @@ export class PixelLabSpriteGenerator {
         x: Math.round(kp.x * this.imageSize.width),
         y: Math.round(kp.y * this.imageSize.height)
       }));;
-      
+    
       const payload = {
         image_size: this.imageSize,
         guidance_scale: 4,
@@ -271,10 +291,10 @@ export class PixelLabSpriteGenerator {
     
     try {
 
-      // Check if API key is provided
-      if(!apiKey || apiKey === '' || apiKey.length<5) apiKey = process.env.PIXEL_LAB_API_KEY_DEVELOPMENT; // PIXEL_LAB_API_KEY_DEVELOPMENT is purposely not set on the aws server, since other people can use the lysle.net/skeleton app
+      apiKey = this.CheckApiKey(apiKey); // Check if the API key is valid
 
       // Api Request
+      console.log('API Key being sent:', apiKey); 
       const res = await axios.post(this.apiUrl, payload, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
