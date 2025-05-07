@@ -4,7 +4,7 @@ handles saving and loading project files with saveLysleSheet() and loadLysleShee
 
 import { ViewState } from './ViewState.js';
 import { SkeletonRenderer } from './SkeletonRenderer.js';
-import { reflowRows, updateAllPlusBoxes, updateDirectionLabels } from './Main.js';
+import { reflowRows, updateAllPlusBoxes, updateDirectionLabels, getDirectionRowOffset } from './Main.js';
 import { Settings } from './Settings.js';
 import { showToast } from './utils.js';
 import { clearCurrentProject, enablePanAndZoom } from './Main.js';
@@ -208,7 +208,7 @@ export function saveLysleSheet(isAutoSave = false) {
   }
 }
 
-export async function loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset) {
+export async function loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget) {
   console.log('[LYSLESHEET] Loading...');
 
   const fileInput = document.createElement('input');
@@ -384,10 +384,9 @@ export function saveProjectToStorage(isAutoSave = false) {
  * @param {Set<string>} selectedPoints - The selected points set
  * @param {{ current: boolean }} isDraggingPoint - Dragging point state
  * @param {{ current: object | null }} dragTarget - Drag target object
- * @param {Function} getDirectionRowOffset - Function to get row offset
  * @returns {boolean} - Whether load was successful
  */
-export function loadProjectFromStorage(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset) {
+export function loadProjectFromStorage(getActiveTool, selectedPoints, isDraggingPoint, dragTarget) {
   console.log('[STORAGE] Loading project from localStorage...');
   
   try {
@@ -516,7 +515,7 @@ export function hasStoredProject() {
 }
 
 
-export function loadSample() {
+export function loadSample(getActiveTool, selectedPoints, isDraggingPoint, dragTarget) {
   console.log('[LYSLESHEET] Loading sample...');
 
   // Create modal overlay
@@ -572,12 +571,12 @@ export function loadSample() {
 
   // Sample button actions
   document.getElementById('sample-little-girl').addEventListener('click', () => {
-    loadSampleFile('/samples/little-girl.lyslesheet');
+    loadSampleFile('/samples/little-girl.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
     document.body.removeChild(modal);
   });
   
   document.getElementById('sample-villager-female').addEventListener('click', () => {
-    loadSampleFile('/samples/villager-female-1.lyslesheet');
+    loadSampleFile('/samples/villager-female-1.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
     document.body.removeChild(modal);
   });
 
@@ -588,7 +587,7 @@ export function loadSample() {
 }
 
 // Load a specific sample file by URL
-function loadSampleFile(url) {
+function loadSampleFile(url, getActiveTool, selectedPoints, isDraggingPoint, dragTarget) {
   console.log(`[LYSLESHEET] Loading sample from ${url}...`);
   
   fetch(url)

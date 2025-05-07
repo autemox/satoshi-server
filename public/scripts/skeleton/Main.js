@@ -442,10 +442,10 @@ function bindToolbarButtons() {
   if (importButton) importButton.addEventListener('click', () => importSpriteSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget));
 
   const loadButton = document.querySelector('[data-button="load"]');
-  if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget, getDirectionRowOffset));
+  if (loadButton) loadButton.addEventListener('click', () => loadLysleSheet(getActiveTool, selectedPoints, isDraggingPoint, dragTarget));
 
   const loadSampleButton = document.querySelector('[data-button="loadsample"]');
-  if (loadSampleButton) loadSampleButton.addEventListener('click', () => loadSample());
+  if (loadSampleButton) loadSampleButton.addEventListener('click', () => loadSample(getActiveTool, selectedPoints, isDraggingPoint, dragTarget));
 }
 
   function disableTextSelection() {
@@ -477,8 +477,7 @@ function bindToolbarButtons() {
           getActiveTool, 
           selectedPoints, 
           isDraggingPoint, 
-          dragTarget, 
-          getDirectionRowOffset
+          dragTarget
         );
         
         // If project was loaded successfully, we're done with initialization
