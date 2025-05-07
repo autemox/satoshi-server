@@ -125,7 +125,7 @@
       console.log('[GEN MANAGER] Sending request to server...');
       
       // Choose the endpoint based on the generation type
-      const endpoint = type === 'rotation' ? '/api/generate-from-rotation' : '/api/generate-from-skeleton';
+      const endpoint = type === 'rotation' ? urlPath+'/api/generate-from-rotation' : urlPath+'/api/generate-from-skeleton';
       
       const response = await fetch(endpoint, {
         method: 'POST',
