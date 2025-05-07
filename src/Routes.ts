@@ -170,6 +170,7 @@ export class Routes
         console.log('skeletonToGenerateFrom:', skeletonToGenerateFrom ? `Array with ${skeletonToGenerateFrom.length} items` : 'undefined');
         console.log('direction:', direction);
         console.log('lockPaletteColors:', lockPaletteColors); 
+        console.log('apiKey:', apiKey);
         
         if (!refImage || !refSkeleton1 || !skeletonToGenerateFrom) {
           console.log('Missing required fields!');
@@ -180,8 +181,8 @@ export class Routes
           console.log('PixelPoser created successfully');
           
           let imageBuffer = refImage2 && refSkeleton2
-            ? await this.spriteGenerator.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction, apiKey, lockPaletteColors)
-            : await this.spriteGenerator.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction, apiKey, lockPaletteColors);
+            ? await this.spriteGenerator.generatePoseWithMultipleSkeletons(refImage, refImage2, refSkeleton1, refSkeleton2, skeletonToGenerateFrom, direction, undefined, apiKey, lockPaletteColors)
+            : await this.spriteGenerator.generatePoseWithSkeletons(refImage, refSkeleton1, skeletonToGenerateFrom, direction, undefined, apiKey, lockPaletteColors);
           
           if (!imageBuffer) {
             console.log('No image buffer returned from PixelPoser');

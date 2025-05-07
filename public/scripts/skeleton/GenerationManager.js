@@ -298,6 +298,7 @@
         apiKey: Settings.pixelLabApiKey,
         lockPaletteColors: Settings.lockPaletteColors
       };
+      console.log(`[GENERATE] ApiKey: ${Settings.pixelLabApiKey}`);
       
       console.log(`[GENERATE] Adding generation ${index+1}/${frames.length} for skeleton ${frame.skeletonId}`);
       
@@ -462,6 +463,7 @@
           lockPaletteColors: Settings.lockPaletteColors
         };
         
+        console.log(`[GENERATE] ApiKey: ${Settings.pixelLabApiKey}`);
         console.log(`[GENERATE] Adding generation ${i+1}/${batchSize} for skeleton ${skeleton.id}`);
         
         generationManager.addSkeletonGenerationToQueue(skeleton.id, payload)
