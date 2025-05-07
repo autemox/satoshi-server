@@ -3,6 +3,7 @@ import { ViewState } from './ViewState.js';
 import { showToast } from './utils.js';
 import { saveLysleSheet, saveProjectToStorage } from './LysleSheetManager.js';
 import { resetCanvasZoomAndOffset } from './Main.js';
+import { openHelp } from './Help.js';
 
 // Default settings
 export const Settings = {
@@ -613,6 +614,14 @@ export function initSettings() {
     const settingsButton = document.querySelector('[data-button="settings"]');
     if (settingsButton) {
       settingsButton.addEventListener('click', openSettings);
+    } else {
+      console.warn('[SETTINGS] Settings button not found');
+    }
+
+    // Set up settings button listener
+    const helpButton = document.querySelector('[data-button="help"]');
+    if (helpButton) {
+      helpButton.addEventListener('click', openHelp);
     } else {
       console.warn('[SETTINGS] Settings button not found');
     }
