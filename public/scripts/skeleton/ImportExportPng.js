@@ -3,6 +3,7 @@ import { showToast } from './utils.js';
 import { reflowRows, updateAllPlusBoxes, updateDirectionLabels, getDirectionRowOffset } from './Main.js';
 import { SkeletonRenderer } from './SkeletonRenderer.js';
 import { getFrameForDirection, loadImage } from './LysleSheetManager.js';
+import { Settings } from './Settings.js';
 
 /**
  * Imports a spritesheet PNG and loads its frames into the editor
