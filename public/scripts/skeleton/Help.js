@@ -49,7 +49,7 @@ export function openHelp() {
   const helpText = `
 <h3>Introduction</h3>
 <p>
-  Lysle.net Skeleton Tool is a spritesheet editor and generator that uses AI to create consistent character frames based on editable skeleton poses.
+  Lysle.net Skeleton Tool is a spritesheet editor and generator that uses PixelLab AI Generations to create consistent character frames based on editable skeleton poses.
   It supports multi-directional animation and gives you full control over frame composition and pose structure.
 </p>
 
@@ -82,6 +82,17 @@ export function openHelp() {
     <strong>Generate sprites</strong> by selecting frames and using the ☰ menu or the lightning icon to start generation
   </li>
 </ol>
+
+<hr/>
+
+<h3>Getting Around</h3>
+<ul>
+  <li><strong>Hold left click the grey background</strong> to pan the view</li>
+  <li><strong>Scroll wheel</strong> to zoom in/out toward and away from your mouse cursor</li>
+  <li><strong>Click a frame</strong> to select it, hold SHIFT to select multiple frames of the same direction</li>
+  <li><strong>Click a joint</strong> to select it, hold SHIFT to select multiple joints</li>
+  <li><strong>Note the frame's menu button</strong> appears only when you have a frame selected</li>
+<hr/>
 
 <hr/>
 
