@@ -571,12 +571,12 @@ export function loadSample(getActiveTool, selectedPoints, isDraggingPoint, dragT
 
   // Sample button actions
   document.getElementById('sample-little-girl').addEventListener('click', () => {
-    loadSampleFile('/samples/little-girl.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
+    loadSampleFile(urlPath+'/samples/little-girl.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
     document.body.removeChild(modal);
   });
   
   document.getElementById('sample-villager-female').addEventListener('click', () => {
-    loadSampleFile('/samples/villager-female-1.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
+    loadSampleFile(urlPath+'/samples/villager-female-1.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
     document.body.removeChild(modal);
   });
 
