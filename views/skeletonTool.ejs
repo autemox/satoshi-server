@@ -79,7 +79,21 @@
       font-family: Arial, sans-serif;
       white-space: nowrap;
     }
-  
+    
+    .tool-button, .animate-mode-button {
+      font-size: 20px;
+      padding: 4px;
+      background: transparent;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .tool-button.active, .animate-mode-button.active {
+      background: #444;
+      border-radius: 4px;
+    }
+    
     .tool-button, .clipboard-mode-button {
       font-size: 20px;
       padding: 4px;
@@ -162,6 +176,10 @@
   <div class="toolbar-group vertical-group">
     <button clipboard-mode="image" class="clipboard-mode-button active" title="Copy/Paste Image">🀥</button>
     <button clipboard-mode="skeleton" class="clipboard-mode-button" title="Copy/Paste Skeleton">𐀪</button>
+  </div>
+
+  <div class="toolbar-group vertical-group">
+    <button animate-mode="animate" class="animate-mode-button" title="Animate">▷</button>
   </div>
 </div>
 

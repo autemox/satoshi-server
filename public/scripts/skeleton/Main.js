@@ -12,6 +12,7 @@ import { generateImage } from './GenerationManager.js';
 import { saveLysleSheet, loadLysleSheet, loadProjectFromStorage, newProject, loadSample } from './LysleSheetManager.js';
 import { initSettings, Settings } from './Settings.js';
 import { importSpriteSheet, exportSpriteSheet } from './ImportExportPng.js';
+import { openAnimationPreview } from './AnimationPreview.js';
 
 console.log('Main.js loaded');
 
@@ -524,6 +525,20 @@ document.querySelectorAll('.clipboard-mode-button').forEach(btn => {
     ViewState.clipboardMode = btn.getAttribute('clipboard-mode') || 'image';
     console.log(`Clipboard (CTRL+C) mode set to ${ViewState.clipboardMode}`);
     showToast(`Clipboard mode set to: ${ViewState.clipboardMode}`, "gray");
+  });
+});
+
+// Then modify the existing animate-mode-button event listener
+document.querySelectorAll('.animate-mode-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.animate-mode-button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ViewState.clipboardMode = btn.getAttribute('clipboard-mode') || 'image';
+    console.log(`Animate window opened`);
+    showToast(`Select frames for animation with SHIFT + left click before pressing animate button`, "gray");
+    
+    // Open the animation preview
+    openAnimationPreview();
   });
 });
 
