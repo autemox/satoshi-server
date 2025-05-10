@@ -92,24 +92,19 @@ export function openHelp() {
   <li><strong>Click a frame</strong> to select it, hold SHIFT to select multiple frames of the same direction</li>
   <li><strong>Click a joint</strong> to select it, hold SHIFT to select multiple joints</li>
   <li><strong>Note the frame's menu button</strong> appears only when you have a frame selected</li>
-<hr/>
-
-<hr/>
-
-<h3>Tools Overview</h3>
-<ul>
-  <li><strong>Point Tool</strong>: Move and edit skeleton joints</li>
-  <li><strong>Pencil Tool</strong>: Freeform sketching (coming soon)</li>
-  <li><strong>Multi-Frame Tool</strong>: Select multiple frames for batch operations</li>
 </ul>
 
 <hr/>
 
-<h3>Clipboard Modes and Behavior</h3>
-<p>The right toolbar lets you switch clipboard modes:</p>
+<h3>Tools Overview</h3>
+<p>The right toolbar switches between tools, modes, and opens the animation window:</p>
 <ul>
-  <li><strong>Image Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the frame's image layer</li>
-  <li><strong>Skeleton Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the skeleton pose (joints only)</li>
+  <li><strong>Point Tool</strong>: Move and edit skeleton joints</li>
+  <li><strong>Pencil Tool</strong>: Freeform sketching (coming soon)</li>
+  <li><strong>Rectangle Select Tool</strong>: Rotate and resize contents of rectangle (coming soon) </li>
+  <li><strong>Image Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the frame's image layer</li>
+  <li><strong>Skeleton Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the skeleton pose (joints only)</li>
+  <li><strong>Animation Window</strong>: Preview animations.  Select your frames with SHIFT + Left Click BEFORE pressing this.</li>
 </ul>
 
 <hr/>
