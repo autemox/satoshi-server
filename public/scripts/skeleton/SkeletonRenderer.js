@@ -57,6 +57,7 @@ import { handleImageToClipboard, handleImageFromClipboard, handleSkeletonToClipb
 import { showToast, findSkeletonById, getOppositeDirection } from './utils.js';
 import { showRotationGenerationDialog } from './RotationScreen.js';
 import { reflectImageFromOpposite, reflectSkeletonFromOpposite } from './ReflectionOperations.js';
+import { estimateSelectedSkeletons } from './SkeletonEstimator.js';
 
 export class SkeletonRenderer {
   constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget, direction) {
@@ -602,7 +603,7 @@ drawBgHitBox() {
     modalContent.style.border = '1px solid #888';
     modalContent.style.borderRadius = '5px';
     modalContent.style.padding = '20px';
-    modalContent.style.width = '500px'; 
+    modalContent.style.width = '600px'; 
     modalContent.style.color = 'white';
     modalContent.style.fontFamily = 'sans-serif';
     
@@ -637,10 +638,11 @@ drawBgHitBox() {
       ['📝', 'Paste from Clipboard', handleImageFromClipboard],
       ['📋', 'Skeleton to Clipboard', handleSkeletonToClipboard],
       ['📝', 'Skeleton from Clipboard', handleSkeletonFromClipboard],
-      ['⚡', 'Generate Using Skeleton', generateImage],
-      ['🔄', 'Generate Using Rotation', showRotationGenerationDialog],
       ['🪞', `Mirror Image from ${oppositeCapitalized}`, reflectImageFromOpposite],
       ['🦴', `Mirror Skeleton from ${oppositeCapitalized}`, reflectSkeletonFromOpposite],
+      ['⚡', 'Generate Image from Skeleton', generateImage],
+      ['⚡', 'Generate Skeleton from Image', () => estimateSelectedSkeletons()],
+      ['⚡', 'Generate Using Rotation', showRotationGenerationDialog],
     ];
     
     

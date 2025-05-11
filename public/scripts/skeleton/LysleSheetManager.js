@@ -548,7 +548,7 @@ export function loadSample(getActiveTool, selectedPoints, isDraggingPoint, dragT
     <p style="margin: 0; font-size: 12px; text-align: center;">⚠️ This will replace your current project.</p>
     <p style="margin: 0; font-size: 14px; text-align: left;"><b>Samples:</b></p>
     <div id="sample-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-      <button id="sample-little-girl" style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; text-align: left;">Little Girl</button>
+      <button id="sample-druid" style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; text-align: left;">Druid</button>
       <button id="sample-villager-female" style="padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 5px; cursor: pointer; text-align: left;">Villager Female</button>
     </div>
     <button id="cancel-load-sample" style="margin-top: 10px; padding: 8px; background: #555; border: none; color: white; border-radius: 5px; cursor: pointer;">Cancel</button>
@@ -570,8 +570,8 @@ export function loadSample(getActiveTool, selectedPoints, isDraggingPoint, dragT
   });
 
   // Sample button actions
-  document.getElementById('sample-little-girl').addEventListener('click', () => {
-    loadSampleFile(urlPath+'/samples/little-girl.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
+  document.getElementById('sample-druid').addEventListener('click', () => {
+    loadSampleFile(urlPath+'/samples/druid.lyslesheet', getActiveTool, selectedPoints, isDraggingPoint, dragTarget);
     document.body.removeChild(modal);
   });
   

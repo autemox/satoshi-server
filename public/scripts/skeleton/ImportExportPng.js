@@ -185,9 +185,9 @@ async function processSpritesheetFrames(img, frameSize, framesWide, directions, 
       const frameDataURL = canvas.toDataURL('image/png');
       
       // Skip if this is beyond the number of frames (empty frames)
-      if (col < dirSkeletons.length) {
-        // Set the image for this skeleton
-        const skeleton = dirSkeletons[col];
+      const frameIndex = col + 2;
+      if (frameIndex < dirSkeletons.length) {
+        const skeleton = dirSkeletons[frameIndex];
         if (skeleton.imageEl) {
           skeleton.imageEl.setAttribute('href', frameDataURL);
           skeleton.imageEl.style.display = '';

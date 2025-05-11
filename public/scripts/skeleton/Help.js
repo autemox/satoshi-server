@@ -111,6 +111,7 @@ export function openHelp() {
 
 <h3>Image Generation from Skeleton</h3>
 <ul>
+  <li>Click the lightning icon or frame's ☰ menu and "Generate Image from Skeleton" to start generation</li>
   <li>Ensure the direction you want to generate in has at least one reference image</li>
   <li>Make sure your reference image has skeleton points in the correct positions: Ears, Eyes, Nose, Neck, Shoulders, Elbows, Hands, Hips, Knees, and Feet. </li>
   <li>Set up skeletons for the frames you wish to generate from<li>
@@ -120,9 +121,16 @@ export function openHelp() {
 
 <h3>Image Generation from Rotation</h3>
 <ul>
-  <li>Use a frame’s ☰ menu and select “Generate from Rotation”</li>
+  <li>Use a frame’s ☰ menu and select “Generate Image from Rotation”</li>
   <li>This mirrors or rotates skeleton/image data across directions</li>
   <li>Useful for creating east/west from south references automatically</li>
+</ul>
+
+<h3>Skeleton Generation from Image</h3>
+<ul>
+  <li>Use a frame’s ☰ menu and select “Generate Skeleton from Image”</li>
+  <li>This will quickly override your current skeleton without your approval</li>
+  <li>Useful for deriving skeletons from images, loads quickly, and does not typically require multiple generations to get right</li>
 </ul>
 
 <hr/>
@@ -184,19 +192,9 @@ export function openHelp() {
 
 <hr/>
 
-<h3>Tips</h3>
-<ul>
-  <li>Use the same skeleton template for all directions for smooth animation</li>
-  <li>Use “Lock Palette Colors” for visual consistency across frames</li>
-  <li>Use the clipboard to quickly mirror or reuse skeletons</li>
-  <li>Always save your project before exporting</li>
-</ul>
-
-<hr/>
-
 <h3>Support</h3>
 <p>
-  For help, updates, or to report a bug, visit <a href="https://lysle.net" target="_blank">lysle.net</a>
+  For help, updates, or to report a bug, visit <a href="https://lysle.net" target="_blank">www.lysle.net</a>
 </p>
 `;
 
