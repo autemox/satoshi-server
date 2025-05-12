@@ -224,6 +224,13 @@ export class PixelLabSpriteGenerator {
     console.error('❌ All retry attempts failed');
     return null;
   }
+
+  sanitizeKeypoints(keypoints: Keypoint[]): Keypoint[] {
+  return keypoints.map(kp => ({
+    ...kp,
+    z_index: kp.z_index !== undefined ? Math.round(kp.z_index) : undefined,
+  }));
+}
   
   // Performs the actual API call without retry logic
   private async generatePoseWithMultipleSkeletonsWithoutRetry(
@@ -260,9 +267,9 @@ export class PixelLabSpriteGenerator {
         isometric: false,
         oblique_projection: false,
         skeleton_keypoints: [
-          skeleton1,  // Frame 1 — frozen
-          skeleton2,  // Frame 2 — frozen (duplicate of frame 1)
-          skeletonToGenerateFrom        // Frame 3 — to generate
+          this.sanitizeKeypoints(skeleton1),  // Frame 1 — frozen
+          this.sanitizeKeypoints(skeleton2),  // Frame 2 — frozen (duplicate of frame 1)
+          this.sanitizeKeypoints(skeletonToGenerateFrom)        // Frame 3 — to generate
         ],
         reference_image: {
           type: 'base64',
