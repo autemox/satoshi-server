@@ -1,295 +1,121 @@
-/*
-Manages cursor styles and custom cursors throughout the application
-*/
-
 import { ViewState } from './ViewState.js';
 
-// Base path for cursor images
-const CURSOR_PATH = 'images/cursors/';
-
-// Cursor types
-export const CURSOR_TYPES = {
-  DEFAULT: 'default',
-  HAND: 'hand',
-  HAND_GRABBING: 'hand-grabbing',
-  EYEDROPPER: 'eyedropper',
-  BRUSH: 'brush',
-  ERASER: 'eraser',
-  ARROW: 'arrow',
-  POINTER: 'pointer'
-};
-
-// Cursor style cache to avoid recreating the same cursor multiple times
-const cursorCache = new Map();
-
-// DOM style element for custom cursors
-let cursorStyleElement = null;
-
 /**
- * Initialize the cursor manager
+ * Changes the cursor to a custom image with the click point at center
+ * @param {string} cursorName - The name of the cursor image (without extension)
+ * @param {string} [fallbackCursor='default'] - Fallback cursor style if the image fails to load
  */
-export function init() {
-  // Create style element if it doesn't exist
-  if (!cursorStyleElement) {
-    cursorStyleElement = document.createElement('style');
-    cursorStyleElement.id = 'custom-cursor-styles';
-    document.head.appendChild(cursorStyleElement);
+function setCursor(cursorName, fallbackCursor = 'default') {
+  // For eyedropper cursor
+  if (cursorName === 'eyedropper') {
+    const cursorPath = `/images/cursors/${cursorName}.png`;
+    document.body.style.cursor = `url('${cursorPath}') 32 32, ${fallbackCursor}`;
+  } else if (cursorName === 'box') {
+    // For box cursor, create a dynamic cursor based on brush size and zoom level
+    import('./ImageEditor.js').then(module => {
+        const brushSize = module.getDrawingState().brushSize;
+        
+        // Debug to check if we're getting the scale correctly
+        console.log('Current ViewState.scale:', ViewState.scale);
+        const scale = ViewState.scale || 8; // Default to 8 if for some reason it's not available
+        
+        // Make sure scale is treated as a number
+        const numericScale = Number(scale);
+        console.log('Using scale for cursor:', numericScale);
+        
+        // Adjust box size based on zoom level - inverse relationship
+        // When zoom is higher (e.g. 16), we need a smaller cursor (1/16 of full size)
+        // When zoom is lower (e.g. 2), we need a larger cursor (1/2 of full size)
+        const zoomAdjustment = numericScale / 8;
+        console.log('zoomAdjustment:', zoomAdjustment);
+        
+        // Create a canvas to draw the cursor
+        const canvas = document.createElement('canvas');
+        const size = 64; // Base cursor size
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw a square representing the brush size adjusted for zoom
+        // This formula ensures the visual size of the cursor matches the actual drawing area
+        const boxSize = brushSize * zoomAdjustment * 4; // Scale by 4 for better visibility
+        console.log('Final boxSize:', boxSize);
+        
+        const offset = (size - boxSize) / 2;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, size, size);
+        
+        // Draw the box outline with a white border
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(offset, offset, boxSize, boxSize);
+        
+        // Add a black outline for contrast
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(offset-1, offset-1, boxSize+2, boxSize+2);
+        
+        // Add crosshair at center
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(size/2, size/2 - 4); // Vertical line top
+        ctx.lineTo(size/2, size/2 + 4); // Vertical line bottom
+        ctx.moveTo(size/2 - 4, size/2);  // Horizontal line left
+        ctx.lineTo(size/2 + 4, size/2);  // Horizontal line right
+        ctx.stroke();
+        
+        // Convert to data URL
+        const dataURL = canvas.toDataURL();
+        
+        // Apply as cursor
+        document.body.style.cursor = `url('${dataURL}') 32 32, ${fallbackCursor}`;
+    });
+  } else {
+    // Regular cursor with center hotspot
+    const cursorPath = `/images/cursors/${cursorName}.png`;
+    document.body.style.cursor = `url('${cursorPath}') 32 32, ${fallbackCursor}`;
   }
-  
-  // Preload cursor images
-  preloadCursorImages();
 }
 
 /**
- * Preload cursor images to avoid flicker on first use
+ * Resets the cursor to the default style
  */
-function preloadCursorImages() {
-  const imagesToPreload = [
-    `${CURSOR_PATH}hand.png`,
-    `${CURSOR_PATH}eyedropper.png`,
-    `${CURSOR_PATH}arrow.png`
-  ];
-  
-  imagesToPreload.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
+function resetCursor() {
+  document.body.style.cursor = 'default';
 }
 
 /**
- * Set cursor for an element
+ * Sets cursor for a specific DOM element
  * @param {HTMLElement} element - The element to set cursor for
- * @param {string} cursorType - The type of cursor to use
- * @param {number} [size] - Size for brush/eraser cursors
+ * @param {string} cursorName - The name of the cursor image (without extension)
+ * @param {string} [fallbackCursor='default'] - Fallback cursor style if the image fails to load
  */
-export function setCursor(element, cursorType, size = 1) {
+function setElementCursor(element, cursorName, fallbackCursor = 'default') {
   if (!element) return;
   
-  switch (cursorType) {
-    case CURSOR_TYPES.DEFAULT:
-      element.style.cursor = 'default';
-      break;
-      
-    case CURSOR_TYPES.HAND:
-      element.style.cursor = `url('${CURSOR_PATH}hand.png') 10 10, grab`;
-      break;
-      
-    case CURSOR_TYPES.HAND_GRABBING:
-      // We don't have grabbing.png, so we'll use hand.png with the grabbing fallback
-      element.style.cursor = `url('${CURSOR_PATH}hand.png') 10 10, grabbing`;
-      break;
-      
-    case CURSOR_TYPES.EYEDROPPER:
-      element.style.cursor = `url('${CURSOR_PATH}eyedropper.png') 1 16, crosshair`;
-      break;
-      
-    case CURSOR_TYPES.ARROW:
-      element.style.cursor = `url('${CURSOR_PATH}arrow.png') 1 1, pointer`;
-      break;
-      
-    case CURSOR_TYPES.POINTER:
-      element.style.cursor = 'pointer';
-      break;
-      
-    case CURSOR_TYPES.BRUSH:
-    case CURSOR_TYPES.ERASER:
-      // Generate dynamic brush cursor based on size
-      const cursorClass = generateBrushCursor(cursorType, size);
-      element.style.cursor = `${cursorClass}, crosshair`;
-      break;
-      
-    default:
-      element.style.cursor = 'default';
-  }
+  const cursorPath = `/images/cursors/${cursorName}.png`;
+  element.style.cursor = `url('${cursorPath}') 32 32, ${fallbackCursor}`;
 }
 
 /**
- * Generate a custom brush/eraser cursor based on size
- * @param {string} cursorType - BRUSH or ERASER
- * @param {number} size - Size of the brush
- * @returns {string} CSS cursor definition
+ * Preloads cursor images for smoother cursor transitions
+ * @param {string[]} cursorNames - Array of cursor names to preload
+ * @returns {Promise} - Resolves when all cursors are loaded
  */
-function generateBrushCursor(cursorType, size) {
-  // Cache key for this cursor
-  const cacheKey = `${cursorType}-${size}`;
-  
-  // Return from cache if it exists
-  if (cursorCache.has(cacheKey)) {
-    return cursorCache.get(cacheKey);
-  }
-  
-  // Calculate dimensions
-  const dimension = Math.max(5, size); // Minimum size 5px for visibility
-  const halfDim = Math.floor(dimension / 2);
-  
-  // Create a canvas for the cursor
-  const canvas = document.createElement('canvas');
-  canvas.width = dimension + 2; // Add border
-  canvas.height = dimension + 2;
-  const ctx = canvas.getContext('2d');
-  
-  if (cursorType === CURSOR_TYPES.BRUSH) {
-    // Draw filled square for brush
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent black
-    ctx.fillRect(1, 1, dimension, dimension);
-    
-    // Draw border
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, dimension + 1, dimension + 1);
-    
-    // Inner border
-    ctx.strokeStyle = 'black';
-    ctx.strokeRect(1.5, 1.5, dimension - 1, dimension - 1);
-  } else {
-    // For eraser, use a different style
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; // Semi-transparent white
-    ctx.fillRect(1, 1, dimension, dimension);
-    
-    // Draw border
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, dimension + 1, dimension + 1);
-    
-    // Draw X
-    ctx.beginPath();
-    ctx.moveTo(1, 1);
-    ctx.lineTo(dimension + 1, dimension + 1);
-    ctx.moveTo(dimension + 1, 1);
-    ctx.lineTo(1, dimension + 1);
-    ctx.stroke();
-  }
-  
-  // Convert to data URL
-  const dataURL = canvas.toDataURL('image/png');
-  const cursorValue = `url('${dataURL}') ${halfDim + 1} ${halfDim + 1}`;
-  
-  // Cache this cursor
-  cursorCache.set(cacheKey, cursorValue);
-  
-  return cursorValue;
+function preloadCursors(cursorNames) {
+  return Promise.all(
+    cursorNames.map(name => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(name);
+        img.onerror = () => reject(`Failed to load cursor: ${name}`);
+        img.src = `/images/cursors/${name}.png`;
+      });
+    })
+  );
 }
 
-/**
- * Set the global cursor for the SVG viewport
- * @param {string} cursorType - The type of cursor to use
- * @param {number} [size] - Size for brush/eraser cursors
- */
-export function setGlobalCursor(cursorType, size = 1) {
-  const svg = document.getElementById('viewport');
-  if (svg) {
-    setCursor(svg, cursorType, size);
-  }
-}
-
-/**
- * Get the appropriate cursor type based on active tool and current state
- * @param {string} activeTool - The currently active tool
- * @param {boolean} [isDown=false] - Whether the mouse is pressed down
- * @returns {string} The appropriate cursor type
- */
-export function getCursorForTool(activeTool, isDown = false) {
-  switch (activeTool) {
-    case 'hand':
-      return isDown ? CURSOR_TYPES.HAND_GRABBING : CURSOR_TYPES.HAND;
-    
-    case 'point':
-      return CURSOR_TYPES.ARROW;
-    
-    case 'pencil':
-      // Get the current drawing tool mode from ViewState
-      const drawingMode = ViewState.drawingMode || 'brush';
-      const size = ViewState.brushSize || 1;
-      
-      switch (drawingMode) {
-        case 'brush':
-          return CURSOR_TYPES.BRUSH;
-        case 'erase':
-          return CURSOR_TYPES.ERASER;
-        case 'eyedropper':
-          return CURSOR_TYPES.EYEDROPPER;
-        default:
-          return CURSOR_TYPES.BRUSH;
-      }
-    
-    default:
-      return CURSOR_TYPES.DEFAULT;
-  }
-}
-
-/**
- * Update all cursors to reflect the current tool state
- */
-export function updateAllCursors() {
-  const activeTool = ViewState.activeTool || 'point';
-  const drawingMode = ViewState.drawingMode || 'brush';
-  const brushSize = ViewState.brushSize || 1;
-  
-  // Get the appropriate cursor type
-  const cursorType = getCursorForTool(activeTool);
-  
-  // Apply to SVG viewport
-  setGlobalCursor(cursorType, brushSize);
-  
-  // Apply to all interactive elements
-  if (activeTool === 'pencil') {
-    // For pencil tool, apply drawing-specific cursors to appropriate elements
-    applyDrawingCursors(drawingMode, brushSize);
-  } else {
-    // For other tools, apply general cursors
-    applyGeneralCursors(activeTool);
-  }
-}
-
-/**
- * Apply drawing-specific cursors to elements
- * @param {string} drawingMode - Current drawing mode (brush/erase/eyedropper)
- * @param {number} brushSize - Current brush size
- */
-function applyDrawingCursors(drawingMode, brushSize) {
-  // Set cursor for all frame backgrounds
-  document.querySelectorAll('.bg-layer rect').forEach(rect => {
-    switch (drawingMode) {
-      case 'brush':
-        setCursor(rect, CURSOR_TYPES.BRUSH, brushSize);
-        break;
-      case 'erase':
-        setCursor(rect, CURSOR_TYPES.ERASER, brushSize);
-        break;
-      case 'eyedropper':
-        setCursor(rect, CURSOR_TYPES.EYEDROPPER);
-        break;
-    }
-  });
-  
-  // Set pointer cursor for UI elements that should remain clickable
-  document.querySelectorAll('.tool-button, #frame-buttons-* text, #menu-* button').forEach(el => {
-    setCursor(el, CURSOR_TYPES.POINTER);
-  });
-}
-
-/**
- * Apply general cursors for non-drawing tools
- * @param {string} activeTool - The active tool
- */
-function applyGeneralCursors(activeTool) {
-  // Set cursor for SVG elements based on tool
-  if (activeTool === 'hand') {
-    setGlobalCursor(CURSOR_TYPES.HAND);
-  } else if (activeTool === 'point') {
-    setGlobalCursor(CURSOR_TYPES.ARROW);
-    
-    // Set pointer cursor for all pivots
-    document.querySelectorAll('.skeleton-layer circle').forEach(circle => {
-      setCursor(circle, CURSOR_TYPES.ARROW);
-    });
-  }
-  
-  // Set pointer cursor for interactive UI elements
-  document.querySelectorAll('.tool-button, #frame-buttons-* text, #menu-* button').forEach(el => {
-    setCursor(el, CURSOR_TYPES.POINTER);
-  });
-}
-
-// Initialize when the file is imported
-init();
+// Export all functions
+export { setCursor, resetCursor, setElementCursor, preloadCursors };

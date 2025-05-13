@@ -6,6 +6,7 @@ Provides drawing functionality for editing sprite images directly in the canvas
 import { findSkeletonById } from './utils.js';
 import { ViewState } from './ViewState.js';
 import { showToast } from './utils.js';
+import { recordAction } from './UndoManager.js';
 
 // Drawing state
 let isDrawing = false;
@@ -15,6 +16,7 @@ let drawingContext = null;
 let tempCanvas = null;
 let currentSkeletonId = null;
 let skeletonGroupTransform = null; // Store the skeleton's transform
+let initialImageState = undefined; // Store the initial image state for undos before they are saved to undomanager, between downclick and release
 
 // Tool settings
 export const TOOL_MODES = {
@@ -76,19 +78,36 @@ export function setBrushColor(color) {
  * @param {MouseEvent} e - Original mouse event
  */
 export function detectedMouseDown(skeletonId, x, y, e) {
-  if (x < 0 || x > 64 || y < 0 || y > 64) return; // Out of bounds
+  // Don't use the passed x, y coordinates as they might already be incorrectly transformed
+  // Instead, get the raw mouse coordinates and do the transformation correctly
   
-  console.log(`Starting ${currentMode} on skeleton ${skeletonId} at (${x}, ${y})`);
+  const svg = document.querySelector('svg'); // Get the SVG element
+  const rect = svg.getBoundingClientRect();
   
+  // Get mouse position in screen coordinates
+  const screenX = e.clientX;
+  const screenY = e.clientY;
+  
+  // Convert to SVG coordinates
+  const svgPoint = svg.createSVGPoint();
+  svgPoint.x = screenX;
+  svgPoint.y = screenY;
+  
+  // Transform to account for all SVG transformations (including scale and pan)
+  const CTM = svg.getScreenCTM().inverse();
+  const transformedPoint = svgPoint.matrixTransform(CTM);
+  
+  // Now find the coordinates relative to the specific skeleton
   const skeleton = findSkeletonById(skeletonId);
   if (!skeleton || !skeleton.group) return;
   
-  // Store the skeleton's transform for later use with SVG mousemove
-  skeletonGroupTransform = skeleton.group.getAttribute('transform');
+  // Get the skeleton's transform matrix
+  const skeletonCTM = skeleton.group.getScreenCTM().inverse();
+  const skeletonPoint = svgPoint.matrixTransform(skeletonCTM);
   
-  // Convert to integer pixel coordinates for pixel art
-  const pixelX = Math.floor(x);
-  const pixelY = Math.floor(y);
+  // These are the accurate coordinates within the skeleton frame
+  const pixelX = Math.floor(skeletonPoint.x);
+  const pixelY = Math.floor(skeletonPoint.y);
   
   // Create or get the temporary canvas
   tempCanvas = document.createElement('canvas');
@@ -100,6 +119,11 @@ export function detectedMouseDown(skeletonId, x, y, e) {
   // Load the existing image to the canvas if there is one
   if (skeleton.imageEl) {
     const imageUrl = skeleton.imageEl.getAttribute('href');
+    
+    // Store the initial image state for undo
+    initialImageState = imageUrl; 
+    console.log(`Initial image state: ${initialImageState}`);
+
     if (imageUrl && imageUrl !== 'data:,' && imageUrl !== '') {
       const img = new Image();
       img.onload = () => {
@@ -152,11 +176,46 @@ export function detectedMouseDown(skeletonId, x, y, e) {
  */
 export function detectedMouseMove(skeletonId, x, y, e) {
   if (!isDrawing || skeletonId !== currentSkeletonId || !drawingContext) return;
-  if (x < 0 || x > 64 || y < 0 || y > 64) return; // Out of bounds
   
-  // Convert to integer pixel coordinates for pixel art
-  const pixelX = Math.floor(x);
-  const pixelY = Math.floor(y);
+  const svg = document.querySelector('svg'); // Get the SVG element
+  
+  // Get mouse position in screen coordinates
+  const screenX = e.clientX;
+  const screenY = e.clientY;
+  
+  // Convert to SVG coordinates
+  const svgPoint = svg.createSVGPoint();
+  svgPoint.x = screenX;
+  svgPoint.y = screenY;
+  
+  // Find the skeleton
+  const skeleton = findSkeletonById(skeletonId);
+  if (!skeleton || !skeleton.group) return;
+  
+  // Get the skeleton's transform matrix
+  const skeletonCTM = skeleton.group.getScreenCTM().inverse();
+  const skeletonPoint = svgPoint.matrixTransform(skeletonCTM);
+  
+  // These are the accurate coordinates within the skeleton frame
+  const pixelX = Math.floor(skeletonPoint.x);
+  const pixelY = Math.floor(skeletonPoint.y);
+
+  // Special handling for eyedropper
+  if (currentMode === TOOL_MODES.EYEDROPPER) {
+    // Only preview the color, don't draw
+    const pixelData = drawingContext.getImageData(pixelX, pixelY, 1, 1).data;
+    if (pixelData[3] !== 0) {
+      const hexColor = rgbToHex(pixelData[0], pixelData[1], pixelData[2]);
+      import('./DrawingToolbar.js').then(module => {
+        module.previewColor(hexColor);
+      });
+    }
+    
+    // Update lastX and lastY without drawing
+    lastX = pixelX;
+    lastY = pixelY;
+    return;
+  }
   
   // Skip if we're still on the same pixel (important for pixel art)
   if (pixelX === lastX && pixelY === lastY) return;
@@ -168,13 +227,11 @@ export function detectedMouseMove(skeletonId, x, y, e) {
   lastY = pixelY;
   
   // Update the image on the SVG
-  const skeleton = findSkeletonById(skeletonId);
-  if (skeleton && skeleton.imageEl) {
-    updateImageElement(skeleton);
-  }
+  updateImageElement(skeleton);
   
   e.stopPropagation();
 }
+
 
 /**
  * Handle mouse move over the SVG (might be outside the original skeleton)
@@ -211,6 +268,23 @@ export function detectedSvgMouseMove(sceneX, sceneY, e) {
   
   // Only draw if we're within the frame bounds
   if (pixelX >= 0 && pixelX < 64 && pixelY >= 0 && pixelY < 64) {
+    // Special handling for eyedropper
+    if (currentMode === TOOL_MODES.EYEDROPPER) {
+      // Only preview the color, don't draw
+      const pixelData = drawingContext.getImageData(pixelX, pixelY, 1, 1).data;
+      if (pixelData[3] !== 0) {
+        const hexColor = rgbToHex(pixelData[0], pixelData[1], pixelData[2]);
+        import('./DrawingToolbar.js').then(module => {
+          module.previewColor(hexColor);
+        });
+      }
+      
+      // Update lastX and lastY without drawing
+      lastX = pixelX;
+      lastY = pixelY;
+      return;
+    }
+    
     // Skip if we're still on the same pixel (important for pixel art)
     if (pixelX === lastX && pixelY === lastY) return;
     
@@ -244,6 +318,7 @@ export function detectedMouseUp(e) {
     if (!skeleton.imageEl) {
       // Create image element if it doesn't exist
       const imageLayer = skeleton.group.querySelector('.image-layer');
+
       if (imageLayer) {
         const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
         imageEl.setAttribute('x', '0');
@@ -255,21 +330,37 @@ export function detectedMouseUp(e) {
         imageLayer.appendChild(imageEl);
         skeleton.imageEl = imageEl;
       }
-    } else {
-      // Update existing image
-      skeleton.imageEl.setAttribute('href', imageData);
-      skeleton.imageEl.style.display = '';
+    }
+
+    // Record for UNDO system- If we have both initial and final states, record the action
+    if (initialImageState !== undefined) {
+      const currentImageData = tempCanvas.toDataURL('image/png');
       
-      // Make sure the image is in the correct layer
-      const imageLayer = skeleton.group.querySelector('.image-layer');
-      if (imageLayer) {
+      // Only record if there's actually a change
+      if (initialImageState !== currentImageData) {
+        recordAction('brush', {
+          skeletonId: currentSkeletonId,
+          beforeImageData: initialImageState,
+          afterImageData: currentImageData,  // Add this line to store the after state immediately
+          mode: currentMode  // Store the tool mode for informative purposes
+        });
+      }
+      initialImageState = undefined; // Reset for next action
+    }
+
+    // Update image
+    skeleton.imageEl.setAttribute('href', imageData);
+    skeleton.imageEl.style.display = '';
+      
+    // Make sure the image is in the correct layer
+    const imageLayer = skeleton.group.querySelector('.image-layer');
+    if (imageLayer) {
         // Remove the image from its current parent if needed
         const parent = skeleton.imageEl.parentNode;
         if (parent && parent !== imageLayer) {
           parent.removeChild(skeleton.imageEl);
           imageLayer.insertBefore(skeleton.imageEl, imageLayer.firstChild);
         }
-      }
     }
     
     if (currentMode !== TOOL_MODES.EYEDROPPER) {
@@ -299,7 +390,18 @@ function drawPixelPerfectLine(x0, y0, x1, y1) {
   if (!drawingContext) return;
   
   // Skip eyedropper for line drawing
-  if (currentMode === TOOL_MODES.EYEDROPPER) return;
+  if (currentMode === TOOL_MODES.EYEDROPPER) {
+    // For eyedropper mode, we want to preview colors without drawing
+    // Get the color at the endpoint
+    const pixelData = drawingContext.getImageData(x1, y1, 1, 1).data;
+    if (pixelData[3] !== 0) {
+      const hexColor = rgbToHex(pixelData[0], pixelData[1], pixelData[2]);
+      import('./DrawingToolbar.js').then(module => {
+        module.previewColor(hexColor);
+      });
+    }
+    return;  // Exit early - don't draw anything
+  }
   
   // Bresenham's line algorithm
   const dx = Math.abs(x1 - x0);
@@ -336,25 +438,89 @@ function drawPixelPerfectLine(x0, y0, x1, y1) {
 function drawPixelSquare(x, y) {
   if (!drawingContext) return;
   
-  // Calculate the offset for the brush size
-  const offset = Math.floor(brushSize / 2);
+  // Debug: log the exact coordinates
+  console.log(`Drawing at ${x}, ${y}`);
   
-  // Draw a square of pixels
+  if (brushSize === 1) {
+    // For size 1, just draw the pixel
+    const pixelX = Math.floor(x);
+    const pixelY = Math.floor(y);
+    
+    if (pixelX < 0 || pixelX >= 64 || pixelY < 0 || pixelY >= 64) return;
+    
+    console.log(`Size 1 brush at pixel ${pixelX}, ${pixelY}`);
+    
+    if (currentMode === TOOL_MODES.BRUSH) {
+      drawingContext.fillStyle = brushColor;
+      drawingContext.fillRect(pixelX, pixelY, 1, 1);
+    } else if (currentMode === TOOL_MODES.ERASE) {
+      drawingContext.clearRect(pixelX, pixelY, 1, 1);
+    }
+    return;
+  }
+  
+  // For larger brushes, try a completely different strategy
+  
+  // 1. Get the integer pixel coordinate
+  const pixelX = Math.floor(x);
+  const pixelY = Math.floor(y);
+  
+  // 2. Calculate the exact position within that pixel (0-1 range)
+  const fracX = x - pixelX;  
+  const fracY = y - pixelY;
+  
+  console.log(`Click position: Pixel (${pixelX}, ${pixelY}), fractional (${fracX.toFixed(4)}, ${fracY.toFixed(4)})`);
+  
+  // 3. For even-sized brushes, shift based on click position
+  let topLeftX, topLeftY;
+  
+  if (brushSize % 2 === 0) { // Even sizes like 2, 4, 6...
+    // Decide which corner of the brush should include the pixel
+    // Based on which side of the pixel was clicked
+    if (fracX < 0.5 && fracY < 0.5) {
+      // Top-left quadrant: Place pixel at bottom-right of brush
+      topLeftX = pixelX - brushSize + 1;
+      topLeftY = pixelY - brushSize + 1;
+      console.log(`Top-left quadrant: Placing at (${topLeftX}, ${topLeftY})`);
+    } else if (fracX >= 0.5 && fracY < 0.5) {
+      // Top-right quadrant: Place pixel at bottom-left of brush
+      topLeftX = pixelX;
+      topLeftY = pixelY - brushSize + 1;
+      console.log(`Top-right quadrant: Placing at (${topLeftX}, ${topLeftY})`);
+    } else if (fracX < 0.5 && fracY >= 0.5) {
+      // Bottom-left quadrant: Place pixel at top-right of brush
+      topLeftX = pixelX - brushSize + 1;
+      topLeftY = pixelY;
+      console.log(`Bottom-left quadrant: Placing at (${topLeftX}, ${topLeftY})`);
+    } else { // fracX >= 0.5 && fracY >= 0.5
+      // Bottom-right quadrant: Place pixel at top-left of brush
+      topLeftX = pixelX;
+      topLeftY = pixelY;
+      console.log(`Bottom-right quadrant: Placing at (${topLeftX}, ${topLeftY})`);
+    }
+  } else { // Odd sizes like 1, 3, 5...
+    // Center the brush on the pixel
+    topLeftX = pixelX - Math.floor(brushSize / 2);
+    topLeftY = pixelY - Math.floor(brushSize / 2);
+    console.log(`Odd-sized brush: Centering at (${topLeftX}, ${topLeftY})`);
+  }
+  
+  // 4. Draw the brush
+  console.log(`Drawing ${brushSize}x${brushSize} brush from (${topLeftX}, ${topLeftY})`);
+  
   for (let i = 0; i < brushSize; i++) {
     for (let j = 0; j < brushSize; j++) {
-      const posX = x - offset + i;
-      const posY = y - offset + j;
+      const curX = topLeftX + i;
+      const curY = topLeftY + j;
       
       // Skip if outside canvas bounds
-      if (posX < 0 || posX >= 64 || posY < 0 || posY >= 64) continue;
+      if (curX < 0 || curX >= 64 || curY < 0 || curY >= 64) continue;
       
-      // Draw or erase the pixel
       if (currentMode === TOOL_MODES.BRUSH) {
         drawingContext.fillStyle = brushColor;
-        drawingContext.fillRect(posX, posY, 1, 1);
+        drawingContext.fillRect(curX, curY, 1, 1);
       } else if (currentMode === TOOL_MODES.ERASE) {
-        // Use clearRect for erasing to make transparent
-        drawingContext.clearRect(posX, posY, 1, 1);
+        drawingContext.clearRect(curX, curY, 1, 1);
       }
     }
   }
@@ -369,7 +535,7 @@ function handleToolAtPosition(x, y) {
   if (!drawingContext) return;
   
   if (currentMode === TOOL_MODES.EYEDROPPER) {
-    // Get the color at this pixel
+    // Get the color at this pixel BEFORE any drawing happens
     const pixelData = drawingContext.getImageData(x, y, 1, 1).data;
     
     // Convert to hex format
@@ -381,15 +547,40 @@ function handleToolAtPosition(x, y) {
     } else {
       const hexColor = rgbToHex(pixelData[0], pixelData[1], pixelData[2]);
       brushColor = hexColor;
+      
+      // Update the color picker in DrawingToolbar
+      import('./DrawingToolbar.js').then(module => {
+        module.previewColor(hexColor);
+      });
+      
       console.log(`Picked color: ${hexColor}`);
       showToast(`Picked color: ${hexColor}`, 'blue');
-      
-      // Switch back to brush mode after picking a color
-      changeMode(TOOL_MODES.BRUSH);
     }
   } else {
     // For brush or erase, draw a pixel square at the given position
     drawPixelSquare(x, y);
+  }
+}
+
+/**
+ * Preview the color at the given position without changing the brush color
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ */
+function previewColorAtPosition(x, y) {
+  if (!drawingContext || currentMode !== TOOL_MODES.EYEDROPPER) return;
+  
+  // Get the color at this pixel
+  const pixelData = drawingContext.getImageData(x, y, 1, 1).data;
+  
+  // If it's not transparent, update the color preview
+  if (pixelData[3] !== 0) {
+    const hexColor = rgbToHex(pixelData[0], pixelData[1], pixelData[2]);
+    
+    // Call into DrawingToolbar to update the color picker preview
+    import('./DrawingToolbar.js').then(module => {
+      module.previewColor(hexColor);
+    });
   }
 }
 

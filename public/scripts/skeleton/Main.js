@@ -13,6 +13,7 @@ import { saveLysleSheet, loadLysleSheet, loadProjectFromStorage, newProject, loa
 import { initSettings, Settings } from './Settings.js';
 import { importSpriteSheet, exportSpriteSheet } from './ImportExportPng.js';
 import { openAnimationPreview } from './AnimationPreview.js';
+import * as KeyboardShortcuts from './KeyboardShortcuts.js';
 
 console.log('Main.js loaded');
 
@@ -72,6 +73,63 @@ function getMaxGenerationsPerDirection(direction) {
   }
 
   return maxGenerations;
+}
+
+/**
+ * Switch to a specific tool
+ * @param {string} toolId - The ID of the tool to switch to ("pencil" or "point")
+ */
+export function switchToTool(toolId) {
+  console.log(`Switching to tool: ${toolId}`);
+  
+  // Get all tool buttons
+  const allButtons = document.querySelectorAll('.tool-button');
+  
+  // First remove active class from all buttons
+  allButtons.forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Then add active class only to the selected tool
+  const selectedButton = document.querySelector(`[data-tool="${toolId}"]`);
+  if (selectedButton) {
+    selectedButton.classList.add('active');
+    console.log(`Set button ${toolId} to active state`);
+  } else {
+    console.warn(`Could not find button with data-tool="${toolId}"`);
+  }
+  
+  // Update active tool
+  activeTool = toolId;
+  console.log(`Active tool set to ${activeTool}`);
+  
+  // Custom toast messages for different tools
+  if (toolId === 'pencil') {
+    showToast(`Selected Drawing (D) Tool`, "gray");
+  } else if (toolId === 'point') {
+    showToast(`Selected Skeleton (S) Tool`, "gray");
+  } else {
+    showToast(`Tool mode set to: ${toolId}`, "gray");
+  }
+  
+  // Toggle drawing toolbar for pencil tool and set appropriate cursor
+  if (toolId === 'pencil') {
+    import('./DrawingToolbar.js').then(module => {
+      module.showToolbar();
+    });
+  } else {
+    // For point/skeleton tool or any other tool, reset cursor to default and hide toolbar
+    import('./CursorManager.js').then(module => {
+      module.resetCursor(); // Reset to default cursor for non-drawing tools
+    });
+    
+    import('./DrawingToolbar.js').then(module => {
+      module.hideToolbar();
+    });
+  }
+  
+  // Redraw all elements
+  redrawAll();
 }
 
 export function reflowRows() {
@@ -500,33 +558,19 @@ function bindToolbarButtons() {
           console.log('No project found in storage, initializing with default skeletons');
           await clearCurrentProject();
         }
+          
+        // Initialize keyboard shortcuts system
+        KeyboardShortcuts.init(switchToTool);
 
       } catch (err) {
         console.error('Failed to load keypoints:', err);
       }
     })();
-  
-// only allow one active tool at at time
+
 document.querySelectorAll('.tool-button').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tool-button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeTool = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
-    console.log(`Active tool set to ${activeTool}`);
-    showToast(`Tool mode set to: ${activeTool}`, "gray");
-    
-    // Toggle drawing toolbar for pencil tool
-    if (activeTool === 'pencil') {
-      import('./DrawingToolbar.js').then(module => {
-        module.showToolbar();
-      });
-    } else {
-      import('./DrawingToolbar.js').then(module => {
-        module.hideToolbar();
-      });
-    }
-    
-    redrawAll();
+    const toolId = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
+    switchToTool(toolId);
   });
 });
 
@@ -622,16 +666,32 @@ export function enablePanAndZoom(scene, svg) {
     ViewState.offsetX = svgX - worldX * ViewState.scale;
     ViewState.offsetY = svgY - worldY * ViewState.scale;
   
+    // Update transform immediately
     updateTransform();
     
-    // Debounce the redraw of all skeletons to avoid performance issues
+    // Debounce the redraw of all skeletons AND cursor to avoid performance issues
     clearTimeout(redrawTimeout);
     redrawTimeout = setTimeout(() => {
       console.log("[ZOOM] Redrawing skeletons after zoom change");
+      
+      // Update skeletons
       Object.values(ViewState.skeletonsByDirection).forEach(skeletonList => {
         skeletonList.forEach(s => s.renderer.draw());
       });
-    }, 250); // Wait 500ms after last zoom event
+      
+      // Update cursor if in drawing mode
+      if (activeTool === 'pencil') {
+        import('./DrawingToolbar.js').then(module => {
+          const currentToolId = module.getCurrentToolId ? module.getCurrentToolId() : null;
+          if (currentToolId === 'brush' || currentToolId === 'erase') {
+            import('./CursorManager.js').then(cursorModule => {
+              console.log("[ZOOM] Updating box cursor with new scale:", ViewState.scale);
+              cursorModule.setCursor('box');
+            });
+          }
+        });
+      }
+    }, 100); // Reduced to 100ms for more responsive cursor updates
   });
 
   svg.addEventListener('mouseup', (e) => {
@@ -660,7 +720,6 @@ export function enablePanAndZoom(scene, svg) {
     dragTarget.current = null;
     ViewState.dragKey = null;
     ViewState.notAClick = false;
-    svg.style.cursor = activeTool === 'hand' ? 'grab' : 'pointer';
   });
 
   // handles panning and skeleton frame selection
@@ -681,7 +740,6 @@ export function enablePanAndZoom(scene, svg) {
       isPanning = true;
       lastX = e.clientX;
       lastY = e.clientY;
-      svg.style.cursor = 'grabbing';
       
       // If clicked on empty space (not a skeleton) and no modifier key, clear selections'
       const isInsideInteractive =
@@ -724,14 +782,10 @@ export function enablePanAndZoom(scene, svg) {
     isPanning = false;
     isDraggingPoint.current = false;
     dragTarget.current = null;
-    if (activeTool === 'hand') svg.style.cursor = 'grab';
-    else svg.style.cursor = 'pointer';
   });
 
   svg.addEventListener('mouseleave', () => {
     isPanning = false;
-    if (activeTool === 'hand') svg.style.cursor = 'grab';
-    else svg.style.cursor = 'pointer';
   });
 
     svg.addEventListener('mousemove', (e) => {

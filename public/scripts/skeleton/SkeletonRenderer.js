@@ -326,7 +326,6 @@ drawBgHitBox() {
   bgHitbox.setAttribute('width', '64');
   bgHitbox.setAttribute('height', '64');
   bgHitbox.setAttribute('fill', patternFill);
-  bgHitbox.style.cursor = 'pointer';
   
   // Add the event listeners
   bgHitbox.addEventListener('mousedown', (e) => {

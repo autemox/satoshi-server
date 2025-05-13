@@ -1,4 +1,3 @@
-// ------ DrawingToolbar.js ------
 /*
 Creates and manages a drawing toolbar with tool selection buttons
 */
@@ -6,10 +5,17 @@ Creates and manages a drawing toolbar with tool selection buttons
 import { ViewState } from './ViewState.js';
 import { showToast } from './utils.js';
 import * as ImageEditor from './ImageEditor.js';
+import { setCursor } from './CursorManager.js';
 
 let toolbarVisible = false;
 let toolbarElement = null;
 let activeTool = 'brush'; // Default tool
+
+const tools = [
+  { id: 'brush', icon: 'images/icons/brush.png', cursor: 'box', tooltip: 'Brush (B)', shortcut: 'B' },
+  { id: 'erase', icon: 'images/icons/eraser.png', cursor: 'box', tooltip: 'Eraser (E)', shortcut: 'E' },
+  { id: 'eyedropper', icon: 'images/icons/eyedropper.png', cursor: 'eyedropper', tooltip: 'Eyedropper (I)', shortcut: 'I' }
+];
 
 /**
  * Initialize the drawing toolbar
@@ -19,9 +25,14 @@ export function initToolbar() {
   if (!toolbarElement) {
     createToolbar();
   }
-  
-  // Bind keyboard shortcuts
-  bindKeyboardShortcuts();
+}
+
+/**
+ * Check if the drawing toolbar is currently visible
+ * @returns {boolean} Whether the toolbar is visible
+ */
+export function isToolbarVisible() {
+  return toolbarVisible;
 }
 
 /**
@@ -75,13 +86,6 @@ function createToolbar() {
   
   toolbarElement.appendChild(sizeLabel);
   toolbarElement.appendChild(sizeInput);
-  
-  // Create tool buttons
-  const tools = [
-    { id: 'brush', icon: 'images/icons/pencil.png', tooltip: 'Brush (B)', shortcut: 'B' },
-    { id: 'erase', icon: 'images/icons/eraser.png', tooltip: 'Eraser (E)', shortcut: 'E' },
-    { id: 'eyedropper', icon: 'images/icons/eyedropper.png', tooltip: 'Eyedropper (I)', shortcut: 'I' }
-  ];
   
   tools.forEach(tool => {
     const button = document.createElement('button');
@@ -162,30 +166,23 @@ function createToolbar() {
 }
 
 /**
- * Bind keyboard shortcuts for tool selection
+ * Preview a color in the color picker without changing the actual brush color
+ * @param {string} hexColor - Hex color code to preview
  */
-function bindKeyboardShortcuts() {
-  document.addEventListener('keydown', (e) => {
-    // Only process if pencil tool is active
-    if (!toolbarVisible) return;
-    
-    // Ignore keydown events in input elements
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
-    const key = e.key.toUpperCase();
-    
-    switch (key) {
-      case 'B':
-        selectTool('brush');
-        break;
-      case 'E':
-        selectTool('erase');
-        break;
-      case 'I':
-        selectTool('eyedropper');
-        break;
-    }
-  });
+export function previewColor(hexColor) {
+  const colorInput = document.querySelector('#drawing-toolbar input[type="color"]');
+  if (colorInput) {
+    // Update the color input to show the previewed color
+    colorInput.value = hexColor;
+  }
+}
+
+/**
+ * Get the current active tool ID
+ * @returns {string} Tool ID
+ */
+export function getCurrentToolId() {
+  return activeTool;
 }
 
 /**
@@ -195,9 +192,14 @@ function bindKeyboardShortcuts() {
 export function selectTool(toolId) {
   // Update active tool
   activeTool = toolId;
+
+  const tool = tools.find(t => t.id === toolId);
+  if (tool && tool.cursor) {
+    setCursor(tool.cursor);
+  }
   
-  // Update button appearance
-  const buttons = document.querySelectorAll('.tool-button');
+  // Update ONLY drawing toolbar buttons (not the main toolbar)
+  const buttons = document.querySelectorAll('#drawing-toolbar .tool-button');
   buttons.forEach(button => {
     if (button.dataset.tool === toolId) {
       button.style.backgroundColor = '#5e89fb';
@@ -228,7 +230,7 @@ export function selectTool(toolId) {
       break;
   }
   
-  showToast(`Selected ${toolName} (${shortcut}) Drawing Tool`, 'blue');
+  showToast(`Selected ${toolName} (${shortcut}) Drawing Tool`, 'gray');
 }
 
 /**

@@ -99,12 +99,11 @@ export function openHelp() {
 <h3>Tools Overview</h3>
 <p>The right toolbar switches between tools, modes, and opens the animation window:</p>
 <ul>
-  <li><strong>Point Tool</strong>: Move and edit skeleton joints</li>
-  <li><strong>Pencil Tool</strong>: Freeform sketching (coming soon)</li>
-  <li><strong>Rectangle Select Tool</strong>: Rotate and resize contents of rectangle (coming soon) </li>
-  <li><strong>Image Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the frame's image layer</li>
-  <li><strong>Skeleton Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the skeleton pose (joints only)</li>
-  <li><strong>Animation Window</strong>: Preview animations.  Select your frames with SHIFT + Left Click BEFORE pressing this.</li>
+  <li><strong>✎ Drawing Tool ("D")</strong>: Draw with Brush (hotkey B), Eraser (hotkey E), or Eyedropper (hotkey I)</li>
+  <li><strong>⊹ Skeleton Point Selection Tool ("S")</strong>: Move and edit skeleton joints</li>
+  <li><strong>🀥 Image Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the frame's image layer</li>
+  <li><strong>𐀪 Skeleton Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the skeleton pose (joints only)</li>
+  <li><strong>▷ Animation Window</strong>: Preview animations.  Select your frames with SHIFT + Left Click BEFORE pressing this.</li>
 </ul>
 
 <hr/>
