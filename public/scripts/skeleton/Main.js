@@ -514,6 +514,18 @@ document.querySelectorAll('.tool-button').forEach(btn => {
     activeTool = /** @type {HTMLButtonElement} */ (btn).dataset.tool || 'select';
     console.log(`Active tool set to ${activeTool}`);
     showToast(`Tool mode set to: ${activeTool}`, "gray");
+    
+    // Toggle drawing toolbar for pencil tool
+    if (activeTool === 'pencil') {
+      import('./DrawingToolbar.js').then(module => {
+        module.showToolbar();
+      });
+    } else {
+      import('./DrawingToolbar.js').then(module => {
+        module.hideToolbar();
+      });
+    }
+    
     redrawAll();
   });
 });
@@ -623,6 +635,13 @@ export function enablePanAndZoom(scene, svg) {
   });
 
   svg.addEventListener('mouseup', (e) => {
+
+    if (ViewState.isDrawing) {
+      import('./ImageEditor.js').then(module => {
+        module.detectedMouseUp(e);
+      });
+    }
+    
     if (isDraggingPoint.current && dragTarget.current) {
       const wasDrag = ViewState.notAClick === true;
       const { skeleton } = dragTarget.current;

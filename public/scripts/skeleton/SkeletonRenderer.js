@@ -58,6 +58,7 @@ import { showToast, findSkeletonById, getOppositeDirection } from './utils.js';
 import { showRotationGenerationDialog } from './RotationScreen.js';
 import { reflectImageFromOpposite, reflectSkeletonFromOpposite } from './ReflectionOperations.js';
 import { estimateSelectedSkeletons } from './SkeletonEstimator.js';
+import * as DrawingToolbar from './DrawingToolbar.js';
 
 export class SkeletonRenderer {
   constructor(id, layer, keypoints, getToolFn, selectedPoints, isDraggingPoint, dragTarget, direction) {
@@ -141,11 +142,12 @@ export class SkeletonRenderer {
     }
 
     this.drawBgHitBox();
-
     
     // Only draw bones and pivots if NOT in pencil mode
-    if (this.getActiveTool() !== 'pencil') 
-    {
+    if (this.getActiveTool() === 'pencil') {
+      DrawingToolbar.showToolbar();
+    } else {
+      DrawingToolbar.hideToolbar();
       this.drawBones();
       this.drawPivots();
     }
@@ -343,6 +345,30 @@ drawBgHitBox() {
       return;
     }
 
+    // Check if pencil tool is active
+    if (this.getActiveTool() === 'pencil') {
+
+      // Calculate position within the frame
+      const rect = this.layer.ownerSVGElement.getBoundingClientRect();
+      const svgX = (e.clientX - rect.left) * (this.layer.ownerSVGElement.viewBox.baseVal.width / rect.width);
+      const svgY = (e.clientY - rect.top) * (this.layer.ownerSVGElement.viewBox.baseVal.height / rect.height);
+      
+      // Get the transform of this skeleton group to calculate local coordinates
+      const transform = this.layer.parentNode.getAttribute('transform');
+      const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+      const skeletonX = match ? parseFloat(match[1]) : 0;
+      const skeletonY = match ? parseFloat(match[2]) : 0;
+      
+      // Calculate coordinates relative to the frame (0-64 range)
+      const x = (svgX - ViewState.offsetX) / ViewState.scale - skeletonX;
+      const y = (svgY - ViewState.offsetY) / ViewState.scale - skeletonY;
+      
+      // Call the drawing function from ImageEditor
+      import('./ImageEditor.js').then(module => {
+        module.detectedMouseDown(this.id, x, y, e);
+      });
+    }
+
     // Set active direction based on this skeleton's direction
     const previousDirection = ViewState.activeDirection;
     if (previousDirection !== this.direction) this.changeDirection(this.direction);
@@ -381,6 +407,28 @@ drawBgHitBox() {
     ViewState.skeletons.forEach(s => s.renderer.draw());
 
     e.stopPropagation();
+  });
+
+  bgHitbox.addEventListener('mousemove', (e) => {
+    if (this.getActiveTool() === 'pencil' && ViewState.isDrawing) {
+      // Calculate position within the frame (same as in mousedown)
+      const rect = this.layer.ownerSVGElement.getBoundingClientRect();
+      const svgX = (e.clientX - rect.left) * (this.layer.ownerSVGElement.viewBox.baseVal.width / rect.width);
+      const svgY = (e.clientY - rect.top) * (this.layer.ownerSVGElement.viewBox.baseVal.height / rect.height);
+      
+      const transform = this.layer.parentNode.getAttribute('transform');
+      const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+      const skeletonX = match ? parseFloat(match[1]) : 0;
+      const skeletonY = match ? parseFloat(match[2]) : 0;
+      
+      const x = (svgX - ViewState.offsetX) / ViewState.scale - skeletonX;
+      const y = (svgY - ViewState.offsetY) / ViewState.scale - skeletonY;
+      
+      import('./ImageEditor.js').then(module => {
+        module.detectedMouseMove(this.id, x, y, e);
+      });
+      e.stopPropagation();
+    }
   });
   
   // Add to the bg layer
