@@ -8,7 +8,7 @@ import { ViewState } from './ViewState.js';
 function setCursor(cursorName, fallbackCursor = 'default') {
   // For eyedropper cursor
   if (cursorName === 'eyedropper') {
-    const cursorPath = `/images/cursors/${cursorName}.png`;
+    const cursorPath = `${urlPath}/images/cursors/${cursorName}.png`;
     document.body.style.cursor = `url('${cursorPath}') 32 32, ${fallbackCursor}`;
   } else if (cursorName === 'box') {
     // For box cursor, create a dynamic cursor based on brush size and zoom level
