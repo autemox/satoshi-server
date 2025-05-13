@@ -4,6 +4,7 @@ import { showToast } from './utils.js';
 import { saveLysleSheet, saveProjectToStorage } from './LysleSheetManager.js';
 import { resetCanvasZoomAndOffset } from './Main.js';
 import { openHelp } from './Help.js';
+import { undo } from './UndoManager.js';
 
 // Default settings
 export const Settings = {
@@ -624,6 +625,14 @@ export function initSettings() {
       helpButton.addEventListener('click', openHelp);
     } else {
       console.warn('[SETTINGS] Settings button not found');
+    }
+
+    // Set up undo button listener
+    const undoButton = document.querySelector('[data-button="undo"]');
+    if (undoButton) {
+      undoButton.addEventListener('click', undo);
+    } else {
+      console.warn('[SETTINGS] Undo button not found');
     }
   }
 

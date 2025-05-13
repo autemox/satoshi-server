@@ -344,29 +344,9 @@ drawBgHitBox() {
       return;
     }
 
-    // Check if pencil tool is active
-    if (this.getActiveTool() === 'pencil') {
-
-      // Calculate position within the frame
-      const rect = this.layer.ownerSVGElement.getBoundingClientRect();
-      const svgX = (e.clientX - rect.left) * (this.layer.ownerSVGElement.viewBox.baseVal.width / rect.width);
-      const svgY = (e.clientY - rect.top) * (this.layer.ownerSVGElement.viewBox.baseVal.height / rect.height);
-      
-      // Get the transform of this skeleton group to calculate local coordinates
-      const transform = this.layer.parentNode.getAttribute('transform');
-      const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-      const skeletonX = match ? parseFloat(match[1]) : 0;
-      const skeletonY = match ? parseFloat(match[2]) : 0;
-      
-      // Calculate coordinates relative to the frame (0-64 range)
-      const x = (svgX - ViewState.offsetX) / ViewState.scale - skeletonX;
-      const y = (svgY - ViewState.offsetY) / ViewState.scale - skeletonY;
-      
-      // Call the drawing function from ImageEditor
-      import('./ImageEditor.js').then(module => {
-        module.detectedMouseDown(this.id, x, y, e);
-      });
-    }
+    // Store whether this frame was already selected before the click
+    const wasAlreadySelected = ViewState.activeSkeletons.has(this.id);
+    const wasInCorrectDirection = ViewState.activeDirection === this.direction;
 
     // Set active direction based on this skeleton's direction
     const previousDirection = ViewState.activeDirection;
@@ -400,6 +380,29 @@ drawBgHitBox() {
     // If point tool is active and no modifier key, clear point selections
     if (this.getActiveTool() === 'point' && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
       this.selectedPoints.clear();
+    }
+
+    // Check if pencil tool is active - ONLY start drawing if frame was ALREADY selected
+    if (this.getActiveTool() === 'pencil' && wasAlreadySelected && wasInCorrectDirection) {
+      // Calculate position within the frame
+      const rect = this.layer.ownerSVGElement.getBoundingClientRect();
+      const svgX = (e.clientX - rect.left) * (this.layer.ownerSVGElement.viewBox.baseVal.width / rect.width);
+      const svgY = (e.clientY - rect.top) * (this.layer.ownerSVGElement.viewBox.baseVal.height / rect.height);
+      
+      // Get the transform of this skeleton group to calculate local coordinates
+      const transform = this.layer.parentNode.getAttribute('transform');
+      const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+      const skeletonX = match ? parseFloat(match[1]) : 0;
+      const skeletonY = match ? parseFloat(match[2]) : 0;
+      
+      // Calculate coordinates relative to the frame (0-64 range)
+      const x = (svgX - ViewState.offsetX) / ViewState.scale - skeletonX;
+      const y = (svgY - ViewState.offsetY) / ViewState.scale - skeletonY;
+      
+      // Call the drawing function from ImageEditor
+      import('./ImageEditor.js').then(module => {
+        module.detectedMouseDown(this.id, x, y, e);
+      });
     }
     
     // Redraw all skeletons in all directions

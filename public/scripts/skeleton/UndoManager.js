@@ -48,7 +48,7 @@ export function recordAction(actionType, details) {
  */
 export function undo() {
   if (undoStack.length === 0) {
-    showToast('Nothing to undo', 'gray');
+    showToast('Undo button is limited to brush strokes', 'gray');
     return;
   }
   

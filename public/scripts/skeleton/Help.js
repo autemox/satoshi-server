@@ -104,7 +104,7 @@ export function openHelp() {
   <li><strong>🀥 Image Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the frame's image layer</li>
   <li><strong>𐀪 Skeleton Clipboard Mode</strong>: CTRL/CMD+C and CTRL/CMD+V copy/paste the skeleton pose (joints only)</li>
   <li><strong>▷ Animation Window</strong>: Preview animations.  Select your frames with SHIFT + Left Click BEFORE pressing this.</li>
-</ul>
+</ul>U
 
 <hr/>
 
@@ -157,6 +157,7 @@ export function openHelp() {
   <li><strong>Samples</strong>: Load example projects from the developer</li>
   <li><strong>Export</strong>: Generate a <code>.png</code> spritesheet (64x64 per frame)</li>
   <li><strong>Import</strong>: Load a <code>.png</code> spritesheet in.  To load correctly, make sure its 64x64 per frame.  Keep it the same in appearance as an export</li>
+  <li><strong>Undo</strong>: This button and CTRL+Z will undo.  Undo function is limited to Brush Strokes</li>
 </ul>
 
 <hr/>
