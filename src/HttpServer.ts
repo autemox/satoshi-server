@@ -15,6 +15,7 @@ import { Routes } from './Routes';
 dotenv.config();
 import { AuthManager } from './AuthManager';
 import cookieParser from 'cookie-parser';
+import expressStaticGzip = require('express-static-gzip');
 
 export class HttpServer {
   app: Express;
@@ -39,6 +40,19 @@ export class HttpServer {
     this.app.locals.urlDomain = process.env.URL_DOMAIN; // URL_PATH is different in development and production.  this allows .ejs files to quickly pull <%= urlPath %> before links
     this.app.use(rateLimit({windowMs: 60 * 1000, max: 99999/*500 req/min*/, message: "Too many requests."}));
     this.app.use(express.json());
+
+    // allow webgl's 'br' encoding for gzip files
+    const webglBuildPath = path.join(__dirname, '../../satoshi-server/brawlers/WebBuild');
+    this.app.use(
+      '/satoshi/brawlers/WebBuild',
+      expressStaticGzip(webglBuildPath, {
+        enableBrotli: true,
+        orderPreference: ['br', 'gz'],
+        setHeaders: (res: express.Response, _path: string) => {
+          res.setHeader('Cache-Control', 'public, max-age=31536000');
+        }
+      } as any)
+    );
 
     // Serve static files
     this.app.use(express.static(path.join(__dirname, '../public')));
