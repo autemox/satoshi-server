@@ -1,17 +1,19 @@
 <IfModule mod_mime.c>
   AddEncoding br .br
   AddEncoding gzip .gz
+  AddType application/wasm .wasm
+  AddType application/javascript .js
+  AddType application/octet-stream .data
 </IfModule>
 
 <IfModule mod_headers.c>
   <FilesMatch "\.br$">
+    ForceType application/octet-stream
     Header set Content-Encoding br
+    Header unset Content-Language
   </FilesMatch>
   <FilesMatch "\.gz$">
+    ForceType application/octet-stream
     Header set Content-Encoding gzip
   </FilesMatch>
 </IfModule>
-
-AddType application/javascript .js
-AddType application/wasm .wasm
-AddType application/octet-stream .data
