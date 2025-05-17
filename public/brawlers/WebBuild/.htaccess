@@ -12,5 +12,6 @@
   # For all .br files: force correct encoding header
   <FilesMatch "\.br$">
     Header set Content-Encoding br
+    Header set X-Test-HTACCESS "yes"
   </FilesMatch>
 </IfModule>
