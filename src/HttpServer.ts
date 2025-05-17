@@ -51,6 +51,11 @@ export class HttpServer {
         }
       } as any)
     );
+    this.app.get('*.br', (req, res, next) => {
+      res.set('Content-Encoding', 'br');
+      res.set('Content-Type', 'application/octet-stream');
+      next();
+    });
 
     // Auth routes
     const authManager = new AuthManager(this.main); // Auth API routes
