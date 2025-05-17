@@ -42,20 +42,15 @@ export class HttpServer {
     this.app.use(express.json());
 
     // allow webgl's 'br' encoding for gzip files
-    const webglBuildPath = path.join(__dirname, '../public/brawlers/WebBuild');
     this.app.use(
-      '/satoshi/brawlers/WebBuild',
-      expressStaticGzip(webglBuildPath, {
+      expressStaticGzip(path.join(__dirname, '../public'), {
         enableBrotli: true,
         orderPreference: ['br', 'gz'],
-        setHeaders: (res: express.Response, _path: string) => {
+        setHeaders: (res: any, path: any) => {
           res.setHeader('Cache-Control', 'public, max-age=31536000');
         }
       } as any)
     );
-
-    // Serve static files
-    this.app.use(express.static(path.join(__dirname, '../public')));
 
     // Auth routes
     const authManager = new AuthManager(this.main); // Auth API routes
