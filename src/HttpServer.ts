@@ -15,7 +15,7 @@ import { Routes } from './Routes';
 dotenv.config();
 import { AuthManager } from './AuthManager';
 import cookieParser from 'cookie-parser';
-import expressStaticGzip = require('express-static-gzip');
+import expressStaticGzip from 'express-static-gzip';
 
 export class HttpServer {
   app: Express;
