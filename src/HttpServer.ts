@@ -42,7 +42,7 @@ export class HttpServer {
     this.app.use(express.json());
 
     // allow webgl's 'br' encoding for gzip files
-    const webglBuildPath = path.join(__dirname, '../../satoshi-server/brawlers/WebBuild');
+    const webglBuildPath = path.join(__dirname, '../public/brawlers/WebBuild');
     this.app.use(
       '/satoshi/brawlers/WebBuild',
       expressStaticGzip(webglBuildPath, {
