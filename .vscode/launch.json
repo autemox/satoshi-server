@@ -21,6 +21,16 @@
         "!${workspaceFolder}/node_modules/typescript/**/*.js"
       ],
       "protocol": "inspector"
+    },
+    {
+      "name": "Debug All Jest Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": ["--runInBand"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }

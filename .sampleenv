@@ -15,3 +15,6 @@ PIXEL_LAB_API_KEY_DEVELOPMENT=  # only set in development
 
 #password for accessing the generation tool via webpage
 ADMIN_PASSWORD=
+
+# openai api key for storytelling system
+OPENAI_API_KEY=
