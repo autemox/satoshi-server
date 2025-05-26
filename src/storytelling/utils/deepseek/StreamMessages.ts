@@ -56,7 +56,7 @@ export class StreamMessages implements IStreamMessages {
         // process up to 1 line each call
         if(lines.length > 1 || forceProcessFinalLine && lines.length == 1) 
         {
-                console.log(`[StreamMessages processContent] 🟢🟢🟢 Processing line: ${lines[0]}`);
+                // console.log(`[StreamMessages processContent] 🟢🟢🟢 Processing line: ${lines[0]}`);
                 const messages = ChatMsg.chatTextToMessages(lines[0], this.playerName, [...allNames], "Invalid", allNames[0]);
                 if (messages && messages.length > 0) {
                     for (const message of messages) this.handleStreamedMessage(message);

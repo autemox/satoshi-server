@@ -95,11 +95,19 @@ export class ChatMsg {
       return result;
     }
 
+    static trimMessage(msgObj: ChatMsg): ChatMsg|undefined {
+
+      let msgObjArr: ChatMsg[] = ChatMsg.trimMessages([msgObj]);
+      return msgObjArr.length > 0 ? msgObjArr[0] : undefined;
+    }
+
     static trimMessages(msgObjArr: ChatMsg[]): ChatMsg[] {
 
       msgObjArr = msgObjArr.filter(obj => obj.message !== ""); // Remove empty string messages
       msgObjArr = msgObjArr.filter(obj => !obj.message.match(/^[0-9]\.?$/)); // remove messages without letters in them
-      msgObjArr = msgObjArr.map(obj => ({ ...obj, message: obj.message.replace(/(^|[^"])("|")([^"]|$)/g, '$1$3')})); // Remove single " while keeping double ""
+      msgObjArr = msgObjArr.map(obj => new ChatMsg(obj.name, obj.message.replace(/(^|[^"])("|")([^"]|$)/g, '$1$3'))); // Remove single " while keeping double ""
+      msgObjArr = msgObjArr.map(obj => new ChatMsg(obj.name, obj.message.replace(new RegExp(`^${obj.name}:\\s*`, 'i'), ''))); // remove redundent Name: from .message
+
       return msgObjArr;
     }
 
@@ -134,10 +142,18 @@ export class ChatMsg {
         }, [] as ChatMsg[]).reverse();
     }
 
+    static convertHarryPotter(str: string, toHarryPotter: boolean): string {
+
+        const words = ["Forbidden Forest", "Dark Forest", "hogwarts", "Eldertree", "divination", "fortune telling", "wingardium leviosa", "Ascendio Maximus", "Nifflers", "Sniffers", "house elf", "elf", "house-elf", "elf", "house-elves", "elves", "house elves", "elves", "Marauder's Map", "Mythic Map", "Time Turner", "Temporal Locket", "Time-Turner", "Temporal Locket", "Deathly Hallows", "Artefacts", "Yule Ball", "Midwinter Dance", "Triwizard Tournament", "Arcane Championship", "Thestral", "Shadowmane", "Daily Prophet", "Arcane Informer", "Sorting Hat", "Oracle Hat", "Snitch", "Swiftsphere", "Quaffle", "Quadball", "Portkey", "Transilock", "Polyjuice", "Formflux", "Pensieve", "Mindwell", "Patronus", "Guardian", "Parseltongue", "Serpentspeak", "Mandrake", "Wailweed", "Horcrux", "Soulshard", "Gringotts", "Goldgrips", "Expelliarmus", "Ejecto", "Dementor", "Wraith", "Butterbeer", "Honeybrew", "Quidditch", "Broomsticks", "Veritaserum", "Truth Potion", " Muggle", " Mundane", "Expelliarmus", "Disarming Jinx", "Stupefy", "Stun", "Fizzing Whizbee", "Flying Fruitsnacks", "Muggles", "Mundanes", "Pertrificus Totalus", "Stasis Majora", " Mandrake", " Ent", "Hagrid", "Holdar", "Witch Weekly", "Witch Magazine", "Scourgify", "Limpio", "Tergeo", "Limpio", "Draught of Living Death", "Juliet Potion", "Drought of Living Death", "Juliet Potion", "Draco", "Drake", "Amortentia", "Infatuatia", "Reparo", "Repairio", "Bludger", "Silver Sphere", "Nargles", "Naggots", "Boggart", "Changeling", "Weasley", "Wimble", "Flitwick", "Felgard", "Hufflepuff", "Huffhearth", "Gryffindor", "Brave", "Slytherin", "Zealstride", "Ravenclaw", "Ironfeather"];
+        const ToEldertree = (str: string, words: string[]): string => words.reduce((acc, word, index, arr) => index % 2 === 0 ? acc.replace(new RegExp(word, 'gi'), arr[index + 1]) : acc, str);
+        const ToHarryPotter= (str: string, words: string[]): string => words.reduce((acc, word, index, arr) => index % 2 === 0 ? acc.replace(new RegExp(arr[index + 1], 'gi'), word) : acc, str);    
+        return toHarryPotter ? ToHarryPotter(str, words) : ToEldertree(str, words);
+    }
+
     // convert chat text (e.g. "Ron: Hello!\nRon: How are you?") to an array of messages
     public static chatTextToMessages(chatText: string, playerName: string, validNames: string[] = [], invalidName: string = 'Invalid', defaultCharacterName:string = ''): ChatMsg[] 
     {
-            console.log(`[ChatManager chatTextToMessages] Converting chat text to messages: ${chatText} (valid names: ${validNames.join(', ')})`);
+            //console.log(`[ChatManager chatTextToMessages] Converting chat text to messages: ${chatText} (valid names: ${validNames.join(', ')})`);
             const allNames = [...validNames, playerName];
           
             // looks for .n Ron: and similar cases and fixes the n to \n
@@ -208,7 +224,7 @@ export class ChatMsg {
             }
             validLines = validLines.filter((msgObj) => msgObj.message.trim() !== ''); // remove empty messages
     
-            console.log(`[ChatManager chatTextToMessages] Converted chat text to ${validLines.length} messages.`);
+            //console.log(`[ChatManager chatTextToMessages] Converted chat text to ${validLines.length} messages.`);
             return validLines;
     }
   }

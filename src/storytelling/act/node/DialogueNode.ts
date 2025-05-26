@@ -19,7 +19,7 @@ import { Chat } from 'openai/resources/chat';
 export class DialogueNode 
 {
     public messages: ChatMsg[] = [];
-    private streamMessages: IStreamMessages|undefined;
+    public streamMessages: IStreamMessages|undefined;
     private nextNode: DialogueNode | undefined; // next node to continue the dialogue if stream doesnt end
     public hash: string; // unique identifier for this node, based on the prompt
 
@@ -30,20 +30,21 @@ export class DialogueNode
         public continuationNode: boolean = false) // whether this node is a continuation of a previous node)
     {
         // hash the prompt
-        this.hash = this.hashPrompt(prompt);
+        this.hash = DialogueNode.hashPrompt(prompt);
 
     }
     
-    private hashPrompt(prompt: string): string { // creates a 10 character unique hash 'name' for the node based on prompt
+    public static hashPrompt(prompt: string): string { // creates a 10 character unique hash 'name' for the node based on prompt
         const crypto = require('crypto');
         const hash = crypto.createHash('sha256').update(prompt).digest('hex');
         return hash.slice(0, 10);
     }
 
-    startNewStreamMessages(): void 
+    startNewStreamMessages(characterNames: string[]): void 
     {
         // if firing this func, this node is the 'first node' created by NodeManager
-        this.streamMessages = new StreamMessages(this.nodeManager.playerName, this.nodeManager.characterNames, this.nodeManager.debugObject, this.handleStreamedMessage.bind(this), this.handleStreamEnded.bind(this));
+        console.log(`[DialogueNode startNewStreamMessages] Starting new stream for node: ${this.hash} characterNames: ${characterNames.join(', ')}`);
+        this.streamMessages = new StreamMessages(this.nodeManager.playerName, characterNames, this.nodeManager.debugObject, this.handleStreamedMessage.bind(this), this.handleStreamEnded.bind(this));
         this.streamMessages.startStream(this.prompt);
     }
 
@@ -57,13 +58,13 @@ export class DialogueNode
         if(this.nextNode != undefined) {
 
             // this node is complete, continue the stream to the next node
-            console.log(`[DialogueNode handleStreamedMessage] Continuing stream to next node: ${this.nextNode.hash}`);
+            //console.log(`[DialogueNode handleStreamedMessage] Continuing stream to next node: ${this.nextNode.hash}`);
             await this.nextNode.handleStreamedMessage(message);
             return;
         }
         
         // cache and forward to NodeManager
-        console.log(`[DialogueNode handleStreamedMessage] Adding message to cache: ${message.name}: ${message.message}`);
+        //console.log(`[DialogueNode handleStreamedMessage] Adding message to cache: ${message.name}: ${message.message}`);
         this.addMessage(message);
         if(!this.continuationNode) this.nodeManager.handleStreamedMessage(message);
 
@@ -77,15 +78,14 @@ export class DialogueNode
 
     private async handleStreamEnded(reason: StreamEndReason): Promise<void> 
     {
-        console.log(`[DialogueNode handleStreamEnded] Stream ended. node: ${this.hash} nextNode: ${this.nextNode ? this.nextNode.hash : "none" } with reason: ${reason} message count: ${this.messages.length}`);
-
         if(this.nextNode != undefined) {
 
             // this node is complete, continue the stream to the next node
-            console.log(`[DialogueNode handleStreamedMessage] Continuing stream ending to next node: ${this.nextNode.hash}`);
             await this.nextNode.handleStreamEnded(reason);
             return;
         }
+
+        console.log(`[DialogueNode handleStreamEnded] Stream ended. node: ${this.hash} with reason: ${reason} message count: ${this.messages.length}`);
 
         if (reason === StreamEndReason.USER_CANCELLED || this.messages.length == 0)
         {
@@ -100,6 +100,9 @@ export class DialogueNode
     private async completeNode(makeNewNode: boolean = true): Promise<void> 
     {
         console.log(`[DialogueNode completeNode] Completing node: ${this.hash} with ${this.messages.length} messages.`);
+
+        // clean up StreamMessages
+        if(this.streamMessages) this.streamMessages = undefined;
 
         // FIRST (before any awaits) create a new node for the stream to continue onto
         if(makeNewNode) {
@@ -119,9 +122,8 @@ export class DialogueNode
 
             // generate a first player message
             const firstPlayerMessage = await GenerateChatMsg.GeneratePlayerChatMsg(this.getNextPrompt(), this.messages, this.nodeManager.debugObject, this.nodeManager.playerName)
-            const message = new ChatMsg(this.nodeManager.playerName, firstPlayerMessage);
-            this.addMessage(message);
-            if(!this.continuationNode) this.nodeManager.handleStreamedMessage(message); // forward to NodeManager
+            this.addMessage(firstPlayerMessage);
+            if(!this.continuationNode) this.nodeManager.handleStreamedMessage(firstPlayerMessage); // forward to NodeManager
 
             // generate second player message
             await this.generateAndAddAltChatMsg();
@@ -138,12 +140,11 @@ export class DialogueNode
     private async generateAndAddAltChatMsg(): Promise<ChatMsg> {
 
         // generate an alternative player message for response option #2  
-        const messageStr = await GenerateChatMsg.GenerateAlternativeChatMsg(this.getNextPrompt(), this.messages, this.nodeManager.debugObject);
-        const message = new ChatMsg(this.nodeManager.playerName, messageStr); 
-        this.addMessage(message); // cache
-        if(!this.continuationNode) this.nodeManager.handleStreamedMessage(message); // forward to NodeManager
-        console.log(`[DialogueNode completeNode] Sent final message to node manager: ${message.name}: ${message.message}`);
-        return message;
+        const alternateMsg = await GenerateChatMsg.GenerateAlternativeChatMsg(this.getNextPrompt(), this.messages, this.nodeManager.debugObject);
+        this.addMessage(alternateMsg); // cache
+        if(!this.continuationNode) this.nodeManager.handleStreamedMessage(alternateMsg); // forward to NodeManager
+        console.log(`[DialogueNode completeNode] Sent final message to node manager: ${alternateMsg.name}: ${alternateMsg.message}`);
+        return alternateMsg;
     }
 
     private getNextPrompt(): string {

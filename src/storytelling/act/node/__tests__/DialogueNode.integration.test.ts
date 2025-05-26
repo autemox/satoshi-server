@@ -26,7 +26,7 @@ describe('DialogueNode Integration Tests', () => {
     mockNodeManager.addNode(node);
 
     // Start the actual streaming process
-    node.startNewStreamMessages();
+    node.startNewStreamMessages(["Jackie", "Katie", "John"]);
 
     // Wait for the real streaming and AI generation to complete
     await new Promise(resolve => setTimeout(resolve, 15000)); // Give it time for real API calls

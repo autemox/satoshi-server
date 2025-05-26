@@ -12,7 +12,7 @@ export interface IActManager {
   handleSystemMessage(systemMessageStr: string): void;
   
   // Register a callback to be notified when the act is complete
-  onActCompleted(callback: () => void): void;
+  onActCompleted: Array<() => void>;
 
   // allow outside classes to lengthen the act, for instance, when there are interruptions (messages the player never received but were marked by actmanager off remainingdialogue)
   lengthenAct(amount: number): void;

@@ -1,13 +1,24 @@
+import { ChatMsg } from '../../../models/ChatMsg';
 import { DialogueNode } from './DialogueNode';
-import { ChatMsg } from './../../../models/ChatMsg';
 
 export interface INodeManager {
-    
     playerName: string;
-    characterNames: string[];
     debugObject: { value: string };
     
+    // Core streaming functionality
+    streamFromNode(
+        prompt: string, 
+        storyName: string, 
+        onMessage: (message: ChatMsg) => void, 
+        characterNames: string[], 
+        delayMs?: number
+    ): Promise<void>;
+    
+    // Message handling
     handleStreamedMessage(message: ChatMsg): void;
-    removeNode(hash: string): void;
+    
+    // Node management
+    createNode(prompt: string, storyName: string, characterNames: string[]): DialogueNode;
     addNode(node: DialogueNode): void;
+    removeNode(hash: string): void;
 }

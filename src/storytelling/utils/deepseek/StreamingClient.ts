@@ -179,7 +179,7 @@ export class StreamingClient {
         stream.isActive = false;
 
         // Log
-        console.log(`[StreamingClient streamEnded] Stream ended: ${id} ${reason} original prompt: ${stream.prompt}`);
+        console.log(`[StreamingClient streamEnded] Stream ended: ${id} ${reason}`);
         this.debugQueryLog.value += `\n🎬🎬🎬 StreamingClient streamEnded: ${id} ${reason}\n`;
         this.debugQueryLog.value += `PROMPT:\n`;
         this.debugQueryLog.value += `${stream.prompt}\n`;
